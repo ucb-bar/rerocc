@@ -19,6 +19,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
   val io = IO(new Bundle {
     val cmd = Flipped(Decoupled(new ReRoCCInstBundle(b)))
     val rr = Decoupled(new ReRoCCMsgBundle(b))
+    val busy = Output(Bool())
   })
   val cmd = Queue(io.cmd, 1, flow=false, pipe=true)
 
@@ -64,6 +65,8 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
   when (io.rr.fire()) {
     state := next_state
   }
+
+  io.busy := state =/= s_inst || cmd.valid
 }
 
 
@@ -207,7 +210,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
 
     val f_req_val = cfg_fence_state.map(_ === f_req)
     val f_req_oh = PriorityEncoderOH(f_req_val)
-    req_arb.io.in(2).valid := f_req_val.orR
+    req_arb.io.in(2).valid := f_req_val.orR && !inst_sender.io.busy && !cmd_q.io.deq.valid
     req_arb.io.in(2).bits.opcode := ReRoCCProtocolOpcodes.mUnbusy
     req_arb.io.in(2).bits.client_id := OHToUInt(f_req_oh)
     req_arb.io.in(2).bits.manager_id := Mux1H(f_req_val, csr_cfg.map(_.mgr))
