@@ -12,8 +12,7 @@ object ReRoCCCSRs {
   val reroccopc1 = (0x801, log2Ceil(MAX_CFGS))
   val reroccopc2 = (0x802, log2Ceil(MAX_CFGS))
   val reroccopc3 = (0x803, log2Ceil(MAX_CFGS))
-  val reroccbsy = (0x804, 1)
-  val reroccbar = (0x805, log2Ceil(MAX_CFGS))
+  val reroccbar = (0x804, log2Ceil(MAX_CFGS))
 
   val rerocccfg0 = (0x810, 9)
   val rerocccfg1 = (0x811, 9)
@@ -33,7 +32,7 @@ object ReRoCCCSRs {
   val rerocccfg15 = (0x81f, 9)
 
   def customCSRs(nCfgs: Int) = (Seq(
-    reroccopc0, reroccopc1, reroccopc2, reroccopc3, reroccbsy, reroccbar,
+    reroccopc0, reroccopc1, reroccopc2, reroccopc3, reroccbar,
   ) ++ Seq(
     rerocccfg0, rerocccfg1, rerocccfg2, rerocccfg3,
     rerocccfg4, rerocccfg5, rerocccfg6, rerocccfg7,

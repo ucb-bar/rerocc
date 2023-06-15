@@ -86,12 +86,9 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val inst_sender = Module(new InstructionSender(edge.bundle))
 
     val csr_opc_io = io.csrs.take(4)
-    val csr_bsy_io = io.csrs(4)
-    val csr_bar_io = io.csrs(5)
-    val csr_cfg_io = io.csrs.drop(6)
+    val csr_bar_io = io.csrs(4)
+    val csr_cfg_io = io.csrs.drop(5)
 
-    val csr_bsy = RegInit(false.B)
-    val csr_bsy_next = WireInit(csr_bsy)
     val csr_opc = Reg(Vec(4, UInt(log2Ceil(nCfgs).W)))
     val csr_opc_next = WireInit(csr_opc)
     val csr_cfg = RegInit(VecInit.fill(nCfgs) { 0.U.asTypeOf(new ReRoCCCfg) })
@@ -100,11 +97,6 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cfg_status = Reg(Vec(nCfgs, new MStatus))
     val cfg_credit_enq = Wire(Valid(UInt(log2Ceil(nCfgs).W)))
     val cfg_credit_deq = Wire(Valid(UInt(log2Ceil(nCfgs).W)))
-
-
-    csr_bsy_io.set := true.B
-    csr_bsy_io.sdata := csr_bsy_next
-    csr_bsy := csr_bsy_next
 
     for (i <- 0 until 4) {
       csr_opc_io(i).set := true.B
@@ -125,8 +117,9 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cfg_acq_status = Reg(new MStatus)
     val cfg_acq_ptbr = Reg(new PTBR)
 
+    for (i <- 0 until nCfgs) { csr_cfg_io(i).stall := cfg_acq_state =/= s_idle }
 
-    when (csr_cfg_io.map(_.wen).orR && !csr_bsy) {
+    when (csr_cfg_io.map(_.wen).orR && cfg_acq_state === s_idle) {
       val sel_oh = csr_cfg_io.map(_.wen)
       val cfg_id = OHToUInt(sel_oh)
       val wdata = Mux1H(sel_oh, csr_cfg_io.map(_.wdata)).asTypeOf(new ReRoCCCfg)
@@ -138,12 +131,10 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
         cfg_acq_mgr_id := wdata.mgr
         cfg_acq_status := io.ptw(0).status
         cfg_acq_ptbr := io.ptw(0).ptbr
-        csr_bsy_next := true.B
       } .elsewhen (!wdata.set && old.set && cfg_acq_state === s_idle) {
         cfg_acq_state := s_rel
         cfg_acq_id := cfg_id
         cfg_acq_mgr_id := old.mgr
-        csr_bsy_next := true.B
         csr_cfg_next(cfg_id) := wdata
       } .elsewhen (wdata.set && old.set) {
 
@@ -163,7 +154,6 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     when (csr_bar_io.wen && cfg_fence_state(csr_bar_io.wdata) === f_idle && csr_cfg(csr_bar_io.wdata).set) {
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
-
 
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
     val req_arb = Module(new HellaPeekingArbiter(
@@ -227,7 +217,6 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       when (rerocc.resp.valid) {
         assert(cfg_acq_state === s_acq_ack)
         cfg_acq_state := s_idle
-        csr_bsy_next := false.B
         csr_cfg_next(cfg_acq_id).set := rerocc.resp.bits.data(0)
         csr_cfg_next(cfg_acq_id).mgr := cfg_acq_mgr_id
         cfg_status(cfg_acq_id) := cfg_acq_status
@@ -249,7 +238,6 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     when (rerocc.resp.bits.opcode === ReRoCCProtocolOpcodes.sRelResp) {
       rerocc.resp.ready := true.B
       when (rerocc.resp.valid) {
-        csr_bsy_next := false.B
         cfg_acq_state := s_idle
       }
     }

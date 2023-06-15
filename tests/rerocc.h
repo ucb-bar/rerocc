@@ -34,9 +34,7 @@
 #define CSR_REROCCOPC1 0x801
 #define CSR_REROCCOPC2 0x802
 #define CSR_REROCCOPC3 0x803
-
-#define CSR_REROCCBSY 0x804
-#define CSR_REROCCBAR 0x805
+#define CSR_REROCCBAR 0x804
 
 #define CSR_REROCCCFG0 0x810
 #define CSR_REROCCCFG1 0x811
@@ -56,7 +54,6 @@
 #define CSR_REROCCCFG15 0x81f
 
 #define LIST_OF_RR_CSRS \
-  F(CSR_REROCCBSY) \
   F(CSR_REROCCBAR) \
   F(CSR_REROCCOPC0) \
   F(CSR_REROCCOPC1) \
@@ -108,18 +105,14 @@ static inline void write_rr_csr(uint64_t cfgId, uint64_t wdata) {
 static bool rr_acquire_single(uint32_t cfgId, uint64_t accelId) {
   uint32_t csrid = CSR_REROCCCFG0 + cfgId;
   uint64_t w = RR_CFG_SET_MASK | (accelId & RR_CFG_MGR_MASK);
-  while (read_rr_csr(CSR_REROCCBSY));
   write_rr_csr(csrid, w);
-  while (read_rr_csr(CSR_REROCCBSY));
   return (read_rr_csr(csrid) & RR_CFG_SET_MASK) != 0;
 }
 
 static void rr_release(uint32_t cfgId) {
   uint32_t csrid = CSR_REROCCCFG0 + cfgId;
   uint64_t w = 0;
-  while (read_rr_csr(CSR_REROCCBSY));
   write_rr_csr(csrid, w);
-  while (read_rr_csr(CSR_REROCCBSY));
 }
 
 static bool rr_acquire_multi(uint32_t cfgId, uint64_t* accelIds, size_t n) {
