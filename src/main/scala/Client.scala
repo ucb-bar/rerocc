@@ -125,20 +125,20 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       val wdata = Mux1H(sel_oh, csr_cfg_io.map(_.wdata)).asTypeOf(new ReRoCCCfg)
       val old = csr_cfg(cfg_id)
       val valid_mgr = edge.mParams.managers.map(_.managerId.U === wdata.mgr).orR
-      when (wdata.set && !old.set && valid_mgr && cfg_acq_state === s_idle) {
+      when (wdata.acq && !old.acq && valid_mgr && cfg_acq_state === s_idle) {
         cfg_acq_state := s_acq0
         cfg_acq_id := cfg_id
         cfg_acq_mgr_id := wdata.mgr
         cfg_acq_status := io.ptw(0).status
         cfg_acq_ptbr := io.ptw(0).ptbr
-      } .elsewhen (!wdata.set && old.set && cfg_acq_state === s_idle) {
+      } .elsewhen (!wdata.acq && old.acq && cfg_acq_state === s_idle) {
         cfg_acq_state := s_rel
         cfg_acq_id := cfg_id
         cfg_acq_mgr_id := old.mgr
         csr_cfg_next(cfg_id) := wdata
-      } .elsewhen (wdata.set && old.set) {
+      } .elsewhen (wdata.acq && old.acq) {
 
-      } .elsewhen (!wdata.set && !old.set) {
+      } .elsewhen (!wdata.acq && !old.acq) {
         csr_cfg_next(cfg_id).mgr := wdata.mgr
       }
     }
@@ -151,7 +151,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
 
     val f_idle :: f_req :: f_ack :: Nil = Enum(3)
     val cfg_fence_state = RegInit(VecInit.fill(nCfgs) { f_idle })
-    when (csr_bar_io.wen && cfg_fence_state(csr_bar_io.wdata) === f_idle && csr_cfg(csr_bar_io.wdata).set) {
+    when (csr_bar_io.wen && cfg_fence_state(csr_bar_io.wdata) === f_idle && csr_cfg(csr_bar_io.wdata).acq) {
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
 
@@ -187,7 +187,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cmd_opc = cmd_q.io.deq.bits.inst.opcode(6,5)
     val cmd_cfg_id = csr_opc(cmd_opc)
     val cmd_cfg = csr_cfg(cmd_cfg_id)
-    val credit_available = cfg_credits(cmd_cfg_id) =/= 0.U && cmd_cfg.set
+    val credit_available = cfg_credits(cmd_cfg_id) =/= 0.U && cmd_cfg.acq
     inst_sender.io.cmd.valid := cmd_q.io.deq.valid && credit_available
     inst_sender.io.cmd.bits.cmd := cmd_q.io.deq.bits
     cmd_q.io.deq.ready := inst_sender.io.cmd.ready && credit_available
@@ -217,7 +217,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       when (rerocc.resp.valid) {
         assert(cfg_acq_state === s_acq_ack)
         cfg_acq_state := s_idle
-        csr_cfg_next(cfg_acq_id).set := rerocc.resp.bits.data(0)
+        csr_cfg_next(cfg_acq_id).acq := rerocc.resp.bits.data(0)
         csr_cfg_next(cfg_acq_id).mgr := cfg_acq_mgr_id
         cfg_status(cfg_acq_id) := cfg_acq_status
       }

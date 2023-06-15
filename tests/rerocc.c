@@ -65,7 +65,7 @@ int main(void) {
     if (!rr_acquire_multi(i, accum_accels, 4))
       printf("Failed to acquire to cfg %d\n", i);
     else
-      printf("Acquired accelerator %ld to cfg %d\n", read_rr_csr(CSR_REROCCCFG0 + i) & RR_CFG_MGR_MASK, i);
+      printf("Acquired accelerator %ld to cfg %d\n", read_rr_csr(CSR_RRCFG0 + i) & RR_CFG_MGR_MASK, i);
 
   for (int i = 0; i < 4; i++) rr_release(i);
 
@@ -73,7 +73,7 @@ int main(void) {
     if (!rr_acquire_multi(i, accum_accels, 4))
       printf("Failed to acquire to cfg %d\n", i);
     else
-      printf("Acquired accelerator %ld to cfg %d\n", read_rr_csr(CSR_REROCCCFG0 + i) & RR_CFG_MGR_MASK, i);
+      printf("Acquired accelerator %ld to cfg %d\n", read_rr_csr(CSR_RRCFG0 + i) & RR_CFG_MGR_MASK, i);
 
   int r = 0;
 
