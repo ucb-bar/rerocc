@@ -144,7 +144,6 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
 
     val inst_q = Module(new Queue(new RoCCCommand, ibufEntries))
     val enq_inst = Reg(new RoCCCommand)
-    val enq_inst_new_mstatus = Reg(Bool())
     inst_q.io.enq.valid := false.B
     inst_q.io.enq.bits := enq_inst
     inst_q.io.enq.bits.inst.opcode := roccOpcode
@@ -164,57 +163,39 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     rr_resp <> resp_arb.io.out
     resp_arb.io.in.foreach { i => i.valid := false.B }
 
-    val status_new = Reg(new MStatus)
-    val client_new = Reg(UInt(log2Ceil(numClients).W))
+    val status_lower = Reg(UInt(64.W))
 
     when (rr_req.valid) {
       when (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mAcquire) {
-        rr_req.ready := true.B
-        when (beat === 0.U) {
-          status_new := rr_req.bits.data.asTypeOf(new MStatus)
-          client_new := rr_req.bits.client_id
-        } .elsewhen (beat === 1.U) {
-          status_new := Cat(rr_req.bits.data, status_new.asUInt(63,0)).asTypeOf(new MStatus)
+        rr_req.ready := resp_arb.io.in(0).ready
+        resp_arb.io.in(0).valid := true.B
+        when (state === s_idle && rr_req.fire()) {
+          state := s_active
+          client := rr_req.bits.client_id
         }
-        when (rr_req.bits.last) {
-          rr_req.ready := resp_arb.io.in(0).ready
-          resp_arb.io.in(0).valid := true.B
-          when (state === s_idle && rr_req.fire()) {
-            state := s_active
-            status := status_new
-            client := client_new
-            ptbr := rr_req.bits.data.asTypeOf(new PTBR)
-          }
+      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mUpdateStatus) {
+        rr_req.ready := !inst_q.io.deq.valid
+        when (!inst_q.io.deq.valid) {
+          when (rr_req.bits.first) { status_lower := rr_req.bits.data }
+          when (rr_req.bits.last) { status := Cat(rr_req.bits.data, status_lower).asTypeOf(new MStatus) }
         }
+      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mUpdatePtbr) {
+        rr_req.ready := !inst_q.io.deq.valid
+        when (!inst_q.io.deq.valid) { ptbr := rr_req.bits.data.asTypeOf(new PTBR) }
       } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mInst) {
         assert(state === s_active && inst_q.io.enq.ready)
         rr_req.ready := true.B
         val next_enq_inst = WireInit(enq_inst)
         when (beat === 0.U) {
-          val update_status = rr_req.bits.data(32)
-          val inst = rr_req.bits.data(31,0).asTypeOf(new RoCCInstruction)
-          enq_inst_new_mstatus := update_status
+          val inst = rr_req.bits.data.asTypeOf(new RoCCInstruction)
           enq_inst.inst := inst
           when (!inst.xs1        ) { enq_inst.rs1 := 0.U }
           when (!inst.xs2        ) { enq_inst.rs2 := 0.U }
-          when (!update_status   ) { enq_inst.status := status }
         } .otherwise {
-          val enq_inst_mstatus0 = enq_inst_new_mstatus && beat === 1.U
-          val enq_inst_mstatus1 = enq_inst_new_mstatus && beat === 2.U
-          val enq_inst_rs1      = enq_inst.inst.xs1 && beat === (Mux(enq_inst_new_mstatus, 2.U, 0.U) +& 1.U)
-          val enq_inst_rs2      = enq_inst.inst.xs2 && beat === (Mux(enq_inst_new_mstatus, 2.U, 0.U) +& 1.U +& enq_inst.inst.xs1)
-          when (enq_inst_mstatus0) {
-            next_enq_inst.status := rr_req.bits.data.asTypeOf(new MStatus)
-          }
-          when (enq_inst_mstatus1) {
-            next_enq_inst.status := Cat(rr_req.bits.data, enq_inst.status.asUInt(63,0)).asTypeOf(new MStatus)
-          }
-          when (enq_inst_rs1) {
-            next_enq_inst.rs1 := rr_req.bits.data
-          }
-          when (enq_inst_rs2) {
-            next_enq_inst.rs2 := rr_req.bits.data
-          }
+          val enq_inst_rs1      = enq_inst.inst.xs1 && beat === 1.U
+          val enq_inst_rs2      = enq_inst.inst.xs2 && beat === Mux(enq_inst.inst.xs1, 2.U, 1.U)
+          when (enq_inst_rs1) { next_enq_inst.rs1 := rr_req.bits.data }
+          when (enq_inst_rs2) { next_enq_inst.rs2 := rr_req.bits.data }
           enq_inst := next_enq_inst
         }
         when (rr_req.bits.last) {
@@ -252,14 +233,6 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     resp_arb.io.in(1).bits.data       := 0.U
     resp_arb.io.in(1).bits.last       := true.B
     resp_arb.io.in(1).bits.first      := true.B
-
-    // inst_q.io.enq.valid               := inst_val(inst_head) && resp_arb.io.in(1).ready
-    // inst_q.io.enq.bits                := inst_buf(inst_head)
-    // inst_q.io.enq.bits.inst.opcode    := roccOpcode
-    // when (inst_q.io.enq.fire()) {
-    //   inst_val(inst_head) := false.B
-    //   inst_head := Mux(inst_head === (ibufEntries-1).U, 0.U, inst_head + 1.U)
-    // }
 
     // writebacks
     val resp = Queue(io.resp)

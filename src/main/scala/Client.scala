@@ -12,7 +12,6 @@ class ReRoCCInstBundle(b: ReRoCCBundleParams)(implicit p: Parameters) extends Bu
   val cmd = new RoCCCommand
   val client_id = UInt(b.clientIdBits.W)
   val manager_id = UInt(b.managerIdBits.W)
-  val send_mstatus = Bool()
 }
 
 class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends Module {
@@ -23,7 +22,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
   })
   val cmd = Queue(io.cmd, 1, flow=false, pipe=true)
 
-  val s_inst :: s_mstatus0 :: s_mstatus1 :: s_rs1 :: s_rs2 :: Nil = Enum(5)
+  val s_inst :: s_rs1 :: s_rs2 :: Nil = Enum(3)
   val state = RegInit(s_inst)
 
   io.rr.valid := cmd.valid
@@ -31,9 +30,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
   io.rr.bits.client_id := cmd.bits.client_id
   io.rr.bits.manager_id := cmd.bits.manager_id
   io.rr.bits.data := MuxLookup(state, 0.U, Seq(
-    (s_inst     -> Cat(cmd.bits.send_mstatus, cmd.bits.cmd.inst.asUInt(31,0))),
-    (s_mstatus0 -> cmd.bits.cmd.status.asUInt),
-    (s_mstatus1 -> (cmd.bits.cmd.status.asUInt >> 64)),
+    (s_inst     -> cmd.bits.cmd.inst.asUInt(31,0)),
     (s_rs1      -> cmd.bits.cmd.rs1),
     (s_rs2      -> cmd.bits.cmd.rs2)))
   io.rr.bits.last := false.B
@@ -43,17 +40,10 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
   val next_state = WireInit(state)
 
   when (state === s_inst) {
-    next_state := Mux(cmd.bits.send_mstatus, s_mstatus0,
-      Mux(cmd.bits.cmd.inst.xs1, s_rs1,
-        Mux(cmd.bits.cmd.inst.xs1, s_rs2, s_inst)))
-    io.rr.bits.last := !cmd.bits.send_mstatus && !cmd.bits.cmd.inst.xs1 && !cmd.bits.cmd.inst.xs2
-    io.rr.bits.first := true.B
-  } .elsewhen (state === s_mstatus0) {
-    next_state := s_mstatus1
-  } .elsewhen (state === s_mstatus1) {
     next_state := Mux(cmd.bits.cmd.inst.xs1, s_rs1,
-      Mux(cmd.bits.cmd.inst.xs2, s_rs2, s_inst))
+      Mux(cmd.bits.cmd.inst.xs1, s_rs2, s_inst))
     io.rr.bits.last := !cmd.bits.cmd.inst.xs1 && !cmd.bits.cmd.inst.xs2
+    io.rr.bits.first := true.B
   } .elsewhen (state === s_rs1) {
     next_state := Mux(cmd.bits.cmd.inst.xs2, s_rs2, s_inst)
     io.rr.bits.last := !cmd.bits.cmd.inst.xs2
@@ -94,7 +84,8 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val csr_cfg = RegInit(VecInit.fill(nCfgs) { 0.U.asTypeOf(new ReRoCCCfg) })
     val csr_cfg_next = WireInit(csr_cfg)
     val cfg_credits = RegInit(VecInit.fill(nCfgs) { p(ReRoCCIBufEntriesKey).U })
-    val cfg_status = Reg(Vec(nCfgs, new MStatus))
+    val cfg_updatestatus = Reg(Vec(nCfgs, Bool()))
+    val cfg_updateptbr = Reg(Vec(nCfgs, Bool()))
     val cfg_credit_enq = Wire(Valid(UInt(log2Ceil(nCfgs).W)))
     val cfg_credit_deq = Wire(Valid(UInt(log2Ceil(nCfgs).W)))
 
@@ -110,12 +101,10 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     }
     csr_cfg := csr_cfg_next
 
-    val s_idle :: s_acq0 :: s_acq1 :: s_acq2 :: s_acq_ack :: s_rel :: s_rel_ack :: Nil = Enum(7)
+    val s_idle :: s_acq :: s_acq_ack :: s_rel :: s_rel_ack :: s_status0 :: s_status1 :: s_ptbr :: Nil = Enum(8)
     val cfg_acq_state = RegInit(s_idle)
     val cfg_acq_id = Reg(UInt())
     val cfg_acq_mgr_id = Reg(UInt())
-    val cfg_acq_status = Reg(new MStatus)
-    val cfg_acq_ptbr = Reg(new PTBR)
 
     for (i <- 0 until nCfgs) { csr_cfg_io(i).stall := cfg_acq_state =/= s_idle }
 
@@ -126,11 +115,9 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       val old = csr_cfg(cfg_id)
       val valid_mgr = edge.mParams.managers.map(_.managerId.U === wdata.mgr).orR
       when (wdata.acq && !old.acq && valid_mgr && cfg_acq_state === s_idle) {
-        cfg_acq_state := s_acq0
+        cfg_acq_state := s_acq
         cfg_acq_id := cfg_id
         cfg_acq_mgr_id := wdata.mgr
-        cfg_acq_status := io.ptw(0).status
-        cfg_acq_ptbr := io.ptw(0).ptbr
       } .elsewhen (!wdata.acq && old.acq && cfg_acq_state === s_idle) {
         cfg_acq_state := s_rel
         cfg_acq_id := cfg_id
@@ -140,6 +127,19 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
 
       } .elsewhen (!wdata.acq && !old.acq) {
         csr_cfg_next(cfg_id).mgr := wdata.mgr
+      }
+    } .otherwise {
+      for (i <- 0 until nCfgs) {
+        when (cfg_updatestatus(i) && csr_cfg(i).acq) {
+          cfg_acq_state := s_status0
+          cfg_acq_id := i.U
+          cfg_acq_mgr_id := csr_cfg(i).mgr
+        }
+        when (cfg_updateptbr(i) && csr_cfg(i).acq) {
+          cfg_acq_state := s_ptbr
+          cfg_acq_id := i.U
+          cfg_acq_mgr_id := csr_cfg(i).mgr
+        }
       }
     }
 
@@ -166,32 +166,46 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       lookup.map(_._1 === sel), lookup.map(_._2))
 
 
-    req_arb.io.in(0).valid := cfg_acq_state.isOneOf(s_acq0, s_acq1, s_acq2, s_rel)
-    req_arb.io.in(0).bits.opcode := Mux(cfg_acq_state === s_rel, ReRoCCProtocolOpcodes.mRelease, ReRoCCProtocolOpcodes.mAcquire)
+    req_arb.io.in(0).valid := cfg_acq_state.isOneOf(s_acq, s_rel, s_status0, s_status1, s_ptbr)
+    req_arb.io.in(0).bits.opcode := Mux1HSel(cfg_acq_state, Seq(
+      s_acq     -> ReRoCCProtocolOpcodes.mAcquire,
+      s_rel     -> ReRoCCProtocolOpcodes.mRelease,
+      s_status0 -> ReRoCCProtocolOpcodes.mUpdateStatus,
+      s_status1 -> ReRoCCProtocolOpcodes.mUpdateStatus,
+      s_ptbr    -> ReRoCCProtocolOpcodes.mUpdatePtbr))
     req_arb.io.in(0).bits.client_id := cfg_acq_id
     req_arb.io.in(0).bits.manager_id := cfg_acq_mgr_id
     req_arb.io.in(0).bits.data := Mux1HSel(cfg_acq_state, Seq(
-      s_acq0 -> cfg_acq_status.asUInt,
-      s_acq1 -> (cfg_acq_status.asUInt >> 64),
-      s_acq2 -> cfg_acq_ptbr.asUInt))
-    req_arb.io.in(0).bits.first := cfg_acq_state.isOneOf(s_acq0, s_rel)
-    req_arb.io.in(0).bits.last := cfg_acq_state.isOneOf(s_acq2, s_rel)
+      s_status0 -> io.ptw(0).status.asUInt,
+      s_status1 -> (io.ptw(0).status.asUInt >> 64),
+      s_ptbr    -> io.ptw(0).ptbr.asUInt))
+    req_arb.io.in(0).bits.first := cfg_acq_state.isOneOf(s_acq, s_rel, s_status0, s_ptbr)
+    req_arb.io.in(0).bits.last := cfg_acq_state.isOneOf(s_acq, s_rel, s_status1, s_ptbr)
     when (req_arb.io.in(0).fire) {
       cfg_acq_state := Mux1HSel(cfg_acq_state, Seq(
-        s_acq0 -> s_acq1,
-        s_acq1 -> s_acq2,
-        s_acq2 -> s_acq_ack,
-        s_rel  -> s_rel_ack))
+        s_acq -> s_acq_ack,
+        s_rel -> s_rel_ack,
+        s_status0 -> s_status1,
+        s_status1 -> s_idle,
+        s_ptbr -> s_idle
+      ))
+    }
+    when (cfg_acq_state === s_status0 && req_arb.io.in(0).fire) {
+      cfg_updatestatus(cfg_acq_id) := false.B
+    }
+    when (cfg_acq_state === s_ptbr && req_arb.io.in(0).fire) {
+      cfg_updateptbr(cfg_acq_id) := false.B
     }
 
     val cmd_opc = cmd_q.io.deq.bits.inst.opcode(6,5)
     val cmd_cfg_id = csr_opc(cmd_opc)
     val cmd_cfg = csr_cfg(cmd_cfg_id)
     val credit_available = cfg_credits(cmd_cfg_id) =/= 0.U && cmd_cfg.acq
-    inst_sender.io.cmd.valid := cmd_q.io.deq.valid && credit_available
+    val status_ready = !cfg_updatestatus(cmd_cfg_id)
+    val ptbr_ready = !cfg_updateptbr(cmd_cfg_id)
+    inst_sender.io.cmd.valid := cmd_q.io.deq.valid && credit_available && status_ready && ptbr_ready && cfg_acq_state === s_idle
     inst_sender.io.cmd.bits.cmd := cmd_q.io.deq.bits
-    cmd_q.io.deq.ready := inst_sender.io.cmd.ready && credit_available
-    inst_sender.io.cmd.bits.send_mstatus := cmd_q.io.deq.bits.status.asUInt =/= cfg_status(cmd_cfg_id).asUInt
+    cmd_q.io.deq.ready := inst_sender.io.cmd.ready && credit_available && status_ready && ptbr_ready && cfg_acq_state === s_idle
     inst_sender.io.cmd.bits.client_id := cmd_cfg_id
     inst_sender.io.cmd.bits.manager_id := cmd_cfg.mgr
     req_arb.io.in(1) <> inst_sender.io.rr
@@ -219,7 +233,8 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
         cfg_acq_state := s_idle
         csr_cfg_next(cfg_acq_id).acq := rerocc.resp.bits.data(0)
         csr_cfg_next(cfg_acq_id).mgr := cfg_acq_mgr_id
-        cfg_status(cfg_acq_id) := cfg_acq_status
+        cfg_updatestatus(cfg_acq_id) := true.B
+        cfg_updateptbr(cfg_acq_id) := true.B
       }
     }
     when (rerocc.resp.bits.opcode === ReRoCCProtocolOpcodes.sInstAck) { rerocc.resp.ready := true.B }
@@ -267,5 +282,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_fence_state.map(_ =/= f_idle).orR
     )
 
+    when (io.ptw(0).ptbr.asUInt =/= RegNext(io.ptw(0).ptbr).asUInt) { cfg_updateptbr.foreach(_ := true.B) }
+    when (io.ptw(0).status.asUInt =/= RegNext(io.ptw(0).status).asUInt) { cfg_updatestatus.foreach(_ := true.B) }
   }
 }

@@ -11,18 +11,21 @@ import freechips.rocketchip.util._
 
 object ReRoCCProtocolOpcodes {
   val width = 3
-  // beat0: data = mstatus[63:0]
-  // beat1: data = mstatus[127:64]
-  // beat2: data = ptbr
+
   val mAcquire = 0.U(width.W)
   // beat0: data = has_mstatus # inst[31:0]
   // beat1: data = mstatus[63:0]
   // beat2: data = mstatus[127:64]
   // beat3: data = op1
   // beat4: data = op2
-  val mInst    = 1.U(width.W)
-  val mRelease = 2.U(width.W)
-  val mUnbusy  = 3.U(width.W)
+  val mInst         = 1.U(width.W)
+  // beat0: data = mstatus[63:0]
+  // beat1: data = mstatus[127:0]
+  val mUpdateStatus = 2.U(width.W)
+  // beat0: data = ptbr
+  val mUpdatePtbr   = 3.U(width.W)
+  val mRelease      = 4.U(width.W)
+  val mUnbusy       = 5.U(width.W)
 
   // data
   // data = acquired
