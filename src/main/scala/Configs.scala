@@ -12,3 +12,7 @@ class WithReRoCC(clientParams: ReRoCCClientParams = ReRoCCClientParams(), reRoCC
   })
   case ReRoCCTileKey => up(BuildRoCC).map(gen => reRoCCManagerParams.copy(genRoCC=Some(gen)))
 })
+
+class WithReRoCCNoC(nocParams: ReRoCCNoCParams) extends Config((site, here, up) => {
+  case ReRoCCNoCKey => Some(nocParams)
+})

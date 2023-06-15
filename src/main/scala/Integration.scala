@@ -13,6 +13,8 @@ import freechips.rocketchip.subsystem._
 
 import boom.common.{BoomTile}
 
+case object ReRoCCNoCKey extends Field[Option[ReRoCCNoCParams]](None)
+
 trait CanHaveReRoCCTiles { this: HasTiles with constellation.soc.CanHaveGlobalNoC =>
 
   // WARNING: Not multi-clock safe
@@ -44,7 +46,13 @@ trait CanHaveReRoCCTiles { this: HasTiles with constellation.soc.CanHaveGlobalNo
   require(!(reRoCCManagers.isEmpty ^ reRoCCClients.isEmpty))
 
   if (!reRoCCClients.isEmpty) {
-    val rerocc_bus = LazyModule(new ReRoCCXbar())
+    val rerocc_bus = p(ReRoCCNoCKey).map { k =>
+      if (k.useGlobalNoC) {
+        globalNoCDomain { LazyModule(new ReRoCCGlobalNoC(k)) }
+      } else {
+        LazyModule(new ReRoCCNoC(k))
+      }
+    }.getOrElse(LazyModule(new ReRoCCXbar()))
     reRoCCClients.foreach { case (t, c) => rerocc_bus.node := t { ReRoCCBuffer() := c.reRoCCNode } }
     reRoCCManagers.foreach { m => m.reRoCCNode := rerocc_bus.node }
   }

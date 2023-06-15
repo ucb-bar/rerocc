@@ -44,7 +44,7 @@ case class ReRoCCNoCProtocolParams(
   val nVirtualNetworks = 2
   val vNetBlocking = (blocker: Int, blockee: Int) => blocker < blockee
   val flows = Seq.tabulate(edgesIn.size, edgesOut.size) { case (i, o) =>
-    Seq(FlowParams(i, o, 1), FlowParams(o + edgesIn.size, i + edgesOut.size, 0))
+    Seq(FlowParams(i, o, 1), FlowParams(o + edgesIn.size, i + edgesOut.size, 0, fifo=true))
   }.flatten.flatten
   def genIO()(implicit p: Parameters): Data = new ReRoCCInterconnectInterface(edgesIn, edgesOut)
   def interface(terminals: NoCTerminalIO,
