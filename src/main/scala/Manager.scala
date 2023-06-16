@@ -145,8 +145,9 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
 
     val inst_q = Module(new Queue(new RoCCCommand, ibufEntries))
     val enq_inst = Reg(new RoCCCommand)
+    val next_enq_inst = WireInit(enq_inst)
     inst_q.io.enq.valid := false.B
-    inst_q.io.enq.bits := enq_inst
+    inst_q.io.enq.bits := next_enq_inst
     inst_q.io.enq.bits.inst.opcode := roccOpcode
 
     // 0 -> acquire ack
@@ -180,7 +181,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
       } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mInst) {
         assert(state === s_active && inst_q.io.enq.ready)
         rr_req.ready := true.B
-        val next_enq_inst = WireInit(enq_inst)
+
         when (req_beat === 0.U) {
           val inst = rr_req.bits.data.asTypeOf(new RoCCInstruction)
           enq_inst.inst := inst
