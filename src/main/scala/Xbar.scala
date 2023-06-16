@@ -44,11 +44,7 @@ class ReRoCCXbar(implicit p: Parameters) extends ReRoCCBus {
     val wideBundle = bundles.reduce((l,r) => l.union(r))
 
     io_out.zipWithIndex.foreach { case (o, oi) => {
-      val out_arb = Module(new HellaPeekingArbiter(
-        new ReRoCCMsgBundle(wideBundle), nIn,
-        (b: ReRoCCMsgBundle) => b.last,
-        Some((b: ReRoCCMsgBundle) => true.B)
-      ))
+      val out_arb = Module(new ReRoCCMsgArbiter(wideBundle, nIn, true))
       out_arb.io.in.zipWithIndex.foreach { case (i, ii) => {
         val sel = edgesOut(oi).mParams.managers.map(_.managerId.U === io_in(ii).req.bits.manager_id).orR
         i.valid := io_in(ii).req.valid && sel
@@ -65,11 +61,7 @@ class ReRoCCXbar(implicit p: Parameters) extends ReRoCCBus {
     io_out.foreach(_.resp.ready := false.B)
 
     io_in.zipWithIndex.foreach { case (i, ii) => {
-      val in_arb = Module(new HellaPeekingArbiter(
-        new ReRoCCMsgBundle(wideBundle), nOut,
-        (b: ReRoCCMsgBundle) => b.last,
-        Some((b: ReRoCCMsgBundle) => true.B)
-      ))
+      val in_arb = Module(new ReRoCCMsgArbiter(wideBundle, nOut, false))
       val minClient = clientOffsets(ii)
       val maxClient = clientOffsets(ii+1)
       in_arb.io.in.zipWithIndex.foreach { case (o, oi) => {

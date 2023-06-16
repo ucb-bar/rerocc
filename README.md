@@ -59,8 +59,6 @@ The protocol implements a 64-bit data channel with multi-beat message types.
 | client_id  | ?     | ID of the ``rrcfg`` register on one end of the message. Managers see unique IDs per ``rrcfg`` on a multi-hart system |
 | manager_id | ?     | ID of the physical manager on one end of the message.                                                                |
 | data       | 64    | See opcode table                                                                                                     |
-| first      | 1     | Indicates head of a multibeat message (TODO: Remove)                                                                 |
-| last       | 1     | Indicates tail of a multibeat message (TODO: Remove)                                                                 |
 
 ### Request Channel Opcodes/Data encodings
 

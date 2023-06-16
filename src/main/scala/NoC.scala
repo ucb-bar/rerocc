@@ -56,10 +56,11 @@ case class ReRoCCNoCProtocolParams(
         val wide_req = Wire(new ReRoCCMsgBundle(wideBundle))
         wide_req := protocol.in(i).req.bits
         wide_req.client_id := remapInToOut(i, protocol.in(i).req.bits.client_id)
+        val (req_first, req_last, _) = ReRoCCMsgFirstLast(protocol.in(i).req, true)
         ingresses(i).flit.valid := protocol.in(i).req.valid
         ingresses(i).flit.bits.payload := wide_req.asUInt
-        ingresses(i).flit.bits.head := wide_req.first
-        ingresses(i).flit.bits.tail := wide_req.last
+        ingresses(i).flit.bits.head := req_first
+        ingresses(i).flit.bits.tail := req_last
         ingresses(i).flit.bits.egress_id := edgesOut.zipWithIndex.map { case (e, ei) => {
           Mux(e.mParams.managers.map(_.managerId.U === wide_req.manager_id).orR, ei.U, 0.U)
         }}.reduce(_|_) +& egressOffset.U
@@ -75,10 +76,11 @@ case class ReRoCCNoCProtocolParams(
       edgesOut.zipWithIndex.map { case (e, o) =>
         val wide_resp = Wire(new ReRoCCMsgBundle(wideBundle))
         wide_resp := protocol.out(o).resp.bits
+        val (resp_first, resp_last, _) = ReRoCCMsgFirstLast(protocol.out(o).resp, false)
         ingresses(edgesIn.size + o).flit.valid := protocol.out(o).resp.valid
         ingresses(edgesIn.size + o).flit.bits.payload := wide_resp.asUInt
-        ingresses(edgesIn.size + o).flit.bits.head := wide_resp.first
-        ingresses(edgesIn.size + o).flit.bits.tail := wide_resp.last
+        ingresses(edgesIn.size + o).flit.bits.head := resp_first
+        ingresses(edgesIn.size + o).flit.bits.tail := resp_last
         ingresses(edgesIn.size + o).flit.bits.egress_id := edgesIn.zipWithIndex.map { case (e, ei) => {
           Mux(isClient(ei, wide_resp.client_id), (ei + edgesOut.size).U, 0.U)
         }}.reduce(_|_) +& egressOffset.U

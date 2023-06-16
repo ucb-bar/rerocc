@@ -138,6 +138,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     io.ptw.pmp.foreach(_ := 0.U.asTypeOf(new PMP))
 
     val rr_req = Queue(rerocc.req)
+    val (req_first, req_last, req_beat) = ReRoCCMsgFirstLast(rr_req, true)
     val rr_resp = rerocc.resp
 
     rr_req.ready := false.B
@@ -148,65 +149,59 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     inst_q.io.enq.bits := enq_inst
     inst_q.io.enq.bits.inst.opcode := roccOpcode
 
-    val beat = RegInit(0.U(8.W))
-    when (rr_req.fire()) { beat := Mux(rr_req.bits.last, 0.U, beat + 1.U) }
-
     // 0 -> acquire ack
     // 1 -> inst ack
     // 2 -> writeback
     // 3 -> rel
     // 4 -> unbusyack
-    val resp_arb = Module(new HellaPeekingArbiter(new ReRoCCMsgBundle(edge.bundle), 5,
-      (b: ReRoCCMsgBundle) => b.last,
-      Some((b: ReRoCCMsgBundle) => true.B)
-    ))
+    val resp_arb = Module(new ReRoCCMsgArbiter(edge.bundle, 5, false))
     rr_resp <> resp_arb.io.out
     resp_arb.io.in.foreach { i => i.valid := false.B }
 
     val status_lower = Reg(UInt(64.W))
 
     when (rr_req.valid) {
-      when (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mAcquire) {
+      when (rr_req.bits.opcode === ReRoCCProtocol.mAcquire) {
         rr_req.ready := resp_arb.io.in(0).ready
         resp_arb.io.in(0).valid := true.B
         when (state === s_idle && rr_req.fire()) {
           state := s_active
           client := rr_req.bits.client_id
         }
-      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mUpdateStatus) {
+      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mUStatus) {
         rr_req.ready := !inst_q.io.deq.valid
         when (!inst_q.io.deq.valid) {
-          when (rr_req.bits.first) { status_lower := rr_req.bits.data }
-          when (rr_req.bits.last) { status := Cat(rr_req.bits.data, status_lower).asTypeOf(new MStatus) }
+          when (req_first) { status_lower := rr_req.bits.data }
+          when (req_last) { status := Cat(rr_req.bits.data, status_lower).asTypeOf(new MStatus) }
         }
-      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mUpdatePtbr) {
+      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mUPtbr) {
         rr_req.ready := !inst_q.io.deq.valid
         when (!inst_q.io.deq.valid) { ptbr := rr_req.bits.data.asTypeOf(new PTBR) }
-      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mInst) {
+      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mInst) {
         assert(state === s_active && inst_q.io.enq.ready)
         rr_req.ready := true.B
         val next_enq_inst = WireInit(enq_inst)
-        when (beat === 0.U) {
+        when (req_beat === 0.U) {
           val inst = rr_req.bits.data.asTypeOf(new RoCCInstruction)
           enq_inst.inst := inst
           when (!inst.xs1        ) { enq_inst.rs1 := 0.U }
           when (!inst.xs2        ) { enq_inst.rs2 := 0.U }
         } .otherwise {
-          val enq_inst_rs1      = enq_inst.inst.xs1 && beat === 1.U
-          val enq_inst_rs2      = enq_inst.inst.xs2 && beat === Mux(enq_inst.inst.xs1, 2.U, 1.U)
+          val enq_inst_rs1      = enq_inst.inst.xs1 && req_beat === 1.U
+          val enq_inst_rs2      = enq_inst.inst.xs2 && req_beat === Mux(enq_inst.inst.xs1, 2.U, 1.U)
           when (enq_inst_rs1) { next_enq_inst.rs1 := rr_req.bits.data }
           when (enq_inst_rs2) { next_enq_inst.rs2 := rr_req.bits.data }
           enq_inst := next_enq_inst
         }
-        when (rr_req.bits.last) {
+        when (req_last) {
           inst_q.io.enq.valid := true.B
 
           assert(inst_q.io.enq.ready)
         }
-      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mRelease) {
+      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mRelease) {
         rr_req.ready := true.B
         state := s_rel_wait
-      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocolOpcodes.mUnbusy) {
+      } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mUnbusy) {
         rr_req.ready := true.B
         state := s_unbusy
       } .otherwise {
@@ -215,46 +210,38 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     }
 
     // acquire->ack/nack
-    resp_arb.io.in(0).bits.opcode := ReRoCCProtocolOpcodes.sAcqResp
+    resp_arb.io.in(0).bits.opcode := ReRoCCProtocol.sAcqResp
     resp_arb.io.in(0).bits.client_id := rr_req.bits.client_id
     resp_arb.io.in(0).bits.manager_id := io.manager_id
     resp_arb.io.in(0).bits.data := state === s_idle
-    resp_arb.io.in(0).bits.last := true.B
-    resp_arb.io.in(0).bits.first := true.B
 
     // insts -> (inst_q, inst_ack)
     io.cmd.valid := inst_q.io.deq.valid && resp_arb.io.in(1).ready
     io.cmd.bits := inst_q.io.deq.bits
     inst_q.io.deq.ready := io.cmd.ready && resp_arb.io.in(1).ready
     resp_arb.io.in(1).valid := inst_q.io.deq.valid && io.cmd.ready
-    resp_arb.io.in(1).bits.opcode     := ReRoCCProtocolOpcodes.sInstAck
+    resp_arb.io.in(1).bits.opcode     := ReRoCCProtocol.sInstAck
     resp_arb.io.in(1).bits.client_id  := client
     resp_arb.io.in(1).bits.manager_id := io.manager_id
     resp_arb.io.in(1).bits.data       := 0.U
-    resp_arb.io.in(1).bits.last       := true.B
-    resp_arb.io.in(1).bits.first      := true.B
 
     // writebacks
     val resp = Queue(io.resp)
     val resp_rd = RegInit(false.B)
     resp_arb.io.in(2).valid           := resp.valid
-    resp_arb.io.in(2).bits.opcode     := ReRoCCProtocolOpcodes.sWrite
+    resp_arb.io.in(2).bits.opcode     := ReRoCCProtocol.sWrite
     resp_arb.io.in(2).bits.client_id  := client
     resp_arb.io.in(2).bits.manager_id := io.manager_id
     resp_arb.io.in(2).bits.data       := Mux(resp_rd, resp.bits.rd, resp.bits.data)
-    resp_arb.io.in(2).bits.last       := resp_rd
-    resp_arb.io.in(2).bits.first      := !resp_rd
     when (resp_arb.io.in(2).fire()) { resp_rd := !resp_rd }
     resp.ready := resp_arb.io.in(2).ready && resp_rd
 
     // release
     resp_arb.io.in(3).valid           := state === s_rel_wait && !io.busy && inst_q.io.count === 0.U
-    resp_arb.io.in(3).bits.opcode     := ReRoCCProtocolOpcodes.sRelResp
+    resp_arb.io.in(3).bits.opcode     := ReRoCCProtocol.sRelResp
     resp_arb.io.in(3).bits.client_id  := client
     resp_arb.io.in(3).bits.manager_id := io.manager_id
     resp_arb.io.in(3).bits.data       := 0.U
-    resp_arb.io.in(3).bits.last       := true.B
-    resp_arb.io.in(3).bits.first      := true.B
 
     when (resp_arb.io.in(3).fire()) {
       state := s_sfence
@@ -263,12 +250,10 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
 
     // unbusyack
     resp_arb.io.in(4).valid           := state === s_unbusy && !io.busy && inst_q.io.count === 0.U
-    resp_arb.io.in(4).bits.opcode     := ReRoCCProtocolOpcodes.sUnbusyAck
+    resp_arb.io.in(4).bits.opcode     := ReRoCCProtocol.sUnbusyAck
     resp_arb.io.in(4).bits.client_id  := client
     resp_arb.io.in(4).bits.manager_id := io.manager_id
     resp_arb.io.in(4).bits.data       := 0.U
-    resp_arb.io.in(4).bits.last       := true.B
-    resp_arb.io.in(4).bits.first      := true.B
 
     when (resp_arb.io.in(4).fire()) { state := s_active }
   }

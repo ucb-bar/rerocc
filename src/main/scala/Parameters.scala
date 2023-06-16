@@ -33,7 +33,6 @@ case class ReRoCCEdgeParams(
   val bundle = ReRoCCBundleParams(
     log2Ceil(cParams.clients.map(_.nCfgs).sum),
     log2Ceil(mParams.managers.map(_.managerId).max + 1))
-
 }
 
 case class ReRoCCBundleParams(
