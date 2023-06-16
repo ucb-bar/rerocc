@@ -4,7 +4,19 @@ The Remote RoCC (ReRoCC) extensions for RoCC-enabled RISC-V cores enables physic
 To simplify adoption and exploration, ReRoCC is backwards compatible with existing RoCC accelerator implementations and software stacks.
 ReRoCC provides a path towards supporting "accelerator virtualization" on many-accelerator architectures, where threads can contend for and share limited physical accelerator resources without requiring user-level software modifications.
 
-## ReRoCC Architectural Extensions
+## ReRoCC Accelerator Client
+
+The accelerator client attaches to existing RISC-V cores to enable them to use remote ReRoCC accelerators.
+The client is itself a RoCC "accelerator", and can plug-in to existing cores like Rocket, (TODO) BOOM, and (TODO) Shuttle.
+
+The client is responsible for tracking which physical accelerators are acquired by the attached hart, forwarding accelerator instructions, and maintaining shadowed architectural state on the remote accelerators.
+
+## ReRoCC Accelerator Manager
+
+The accelerator manager wraps an existing RoCC accelerator implementation, providing the standard RoCC interface to the accelerator.
+The manager implements shadow copies of critical core architectural state, including the ``mstatus`` and ``ptbr`` registers, as well as a shadow page-table-walker, for the accelerator to access.
+
+## ReRoCC RISC-V Architectural Extensions
 
 ReRoCC adds new user-level CSRs to the host CPU, which manage the availability of physical accelerators for the CPU thread.
 
@@ -30,22 +42,10 @@ The ``rrbar`` register is currently used to assist in fencing accelerator memory
 | ``rrcfgX[7:0]``  | Index of physical accelerator this register is mapped to                                                                                                        |
 | ``rrcfgX[8]``    | If set, indicates this register should attempt to "acquire" the corresponding physical accelerator. Reading this bit returns whether acquisition was successful |
 
-## ReRoCC Accelerator Client
-
-The accelerator client attaches to existing RISC-V cores to enable them to use remote ReRoCC accelerators.
-The client is itself a RoCC "accelerator", and can plug-in to existing cores like Rocket, (TODO) BOOM, and (TODO) Shuttle.
-
-The client is responsible for tracking which physical accelerators are acquired by the attached hart, forwarding accelerator instructions, and maintaining shadowed architectural state on the remote accelerators.
-
-## ReRoCC Accelerator Manager
-
-The accelerator manager wraps an existing RoCC accelerator implementation, providing the standard RoCC interface to the accelerator.
-The manager implements shadow copies of critical core architectural state, including the ``mstatus`` and ``ptbr`` registers, as well as a shadow page-table-walker, for the accelerator to access.
-
 ## ReRoCC Messaging Protocol
 
 The ReRoCC messaging protocol is a simple, in-order, non-blocking, dual-channel packetized messaging protocol to facilitate communication and synchronization between accelerator clients and managers.
-A ``request`` channel is for client-to-manager traffic, whiel a ``response`` channel implements manager-to-client traffic.
+A ``request`` channel is for client-to-manager traffic, while a ``response`` channel implements manager-to-client traffic.
 Both channels use the same message encoding.
 
 The protocol can be implemented by a crossbar or NoC-based interconnect.
