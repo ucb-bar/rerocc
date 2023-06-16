@@ -6,14 +6,14 @@ ReRoCC provides a path towards supporting "accelerator virtualization" on many-a
 
 ## ReRoCC Accelerator Client
 
-The accelerator client attaches to existing RISC-V cores to enable them to use remote ReRoCC accelerators.
+The accelerator [client](https://github.com/ucb-bar/rerocc/blob/master/src/main/scala/Client.scala) attaches to existing RISC-V cores to enable them to use remote ReRoCC accelerators.
 The client is itself a RoCC "accelerator", and can plug-in to existing cores like Rocket, (TODO) BOOM, and (TODO) Shuttle.
 
 The client is responsible for tracking which physical accelerators are acquired by the attached hart, forwarding accelerator instructions, and maintaining shadowed architectural state on the remote accelerators.
 
 ## ReRoCC Accelerator Manager
 
-The accelerator manager wraps an existing RoCC accelerator implementation, providing the standard RoCC interface to the accelerator.
+The accelerator [manager](https://github.com/ucb-bar/rerocc/blob/master/src/main/scala/Manager.scala) wraps an existing RoCC accelerator implementation, providing the standard RoCC interface to the accelerator.
 The manager implements shadow copies of critical core architectural state, including the ``mstatus`` and ``ptbr`` registers, as well as a shadow page-table-walker, for the accelerator to access.
 
 ## ReRoCC RISC-V Architectural Extensions
