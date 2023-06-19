@@ -71,13 +71,13 @@ object ReRoCCMsgFirstLast {
     last := true.B
     if (isReq) {
       when (m.bits.opcode === ReRoCCProtocol.mUStatus) {
-        last := beat === max_beat
+        last := beat === max_beat && !first
       } .elsewhen (m.bits.opcode === ReRoCCProtocol.mInst) {
         last := Mux(first, !inst.xs1 && !inst.xs2, beat === max_beat)
       }
     } else {
       when (m.bits.opcode === ReRoCCProtocol.sWrite) {
-        last := beat === max_beat
+        last := beat === max_beat && !first
       }
     }
 
