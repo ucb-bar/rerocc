@@ -104,7 +104,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
   override lazy val module = new Impl
   class Impl extends LazyModuleImp(this) {
     val io = IO(new Bundle {
-      val manager_id = Input(UInt(64.W))
+      val manager_id = Input(UInt(log2Ceil(p(ReRoCCTileKey).size).W))
       val cmd = Decoupled(new RoCCCommand)
       val resp = Flipped(Decoupled(new RoCCResponse))
       val busy = Input(Bool())
