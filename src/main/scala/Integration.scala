@@ -35,7 +35,7 @@ trait CanHaveReRoCCTiles { this: HasTiles with constellation.soc.CanHaveGlobalNo
     shouldBeInlined = false // can't inline something whose output we are are dontTouching
   )).node
   val reRoCCManagers = p(ReRoCCTileKey).zipWithIndex.map { case (g,i) =>
-    val rerocc_tile = LazyModule(new ReRoCCManagerTile(g.copy(rowBits = p(SystemBusKey).beatBits, reroccId = i), p))
+    val rerocc_tile = LazyModule(new ReRoCCManagerTile(g.copy(reroccId = i), p))
     println(s"ReRoCC Manager id $i is a ${rerocc_tile.rocc}")
     locateTLBusWrapper(SBUS).coupleFrom(s"port_named_rerocc_$i") {
       (_ :=* TLBuffer() :=* rerocc_tile.tlNode)

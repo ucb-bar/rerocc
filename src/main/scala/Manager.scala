@@ -289,7 +289,7 @@ class ReRoCCManagerTile()(implicit p: Parameters) extends LazyModule {
 
   // minicache
   val dcache = reRoCCParams.dcacheParams.map(_ => LazyModule(new MiniDCache(reRoCCId, SynchronousCrossing())(p)))
-  dcache.map(d => tlXbar := d.node)
+  dcache.map(d => tlXbar := TLWidthWidget(reRoCCParams.rowBits/8) := d.node)
 
   val hellammio: Option[HellaMMIO] = if (!dcache.isDefined) {
     val h = LazyModule(new HellaMMIO(s"ReRoCC $reRoCCId MMIO"))
