@@ -307,6 +307,8 @@ class ReRoCCManagerTile()(implicit p: Parameters) extends LazyModule {
     val ptw = Module(new PTW(1 + rocc.nPTWPorts)(edge, p))
 
     if (dcache.isDefined) {
+      dcache.get.module.tlb_port := DontCare
+      dcache.get.module.tlb_port.req.valid := false.B
       ptw.io.requestor(0) <> dcache.get.module.io.ptw
     } else {
       ptw.io.requestor(0) := DontCare
@@ -327,5 +329,12 @@ class ReRoCCManagerTile()(implicit p: Parameters) extends LazyModule {
     rerocc_manager.module.io.busy := rocc.module.io.busy
 
     ptw.io.dpath <> rerocc_manager.module.io.ptw
+
+    rocc.module.io.fpu_req.ready := false.B
+    assert(!rocc.module.io.fpu_req.valid)
+    rocc.module.io.fpu_resp.valid := false.B
+    rocc.module.io.fpu_resp.bits := DontCare
+
+    rocc.module.io.exception := false.B
   }
 }
