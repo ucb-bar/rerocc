@@ -279,7 +279,7 @@ class ReRoCCManagerTile()(implicit p: Parameters) extends LazyModule {
   val tlNode = p(TileVisibilityNodeKey) // throttle before TL Node (merged ->
   val tlXbar = TLXbar()
 
-  tlXbar :=* rocc.atlNode
+  tlXbar :=* TLBuffer() :=* rocc.atlNode
   if (reRoCCParams.mergeTLNodes) {
     tlXbar :=* rocc.tlNode
   } else {
