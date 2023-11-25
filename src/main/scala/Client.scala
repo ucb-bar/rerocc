@@ -66,8 +66,6 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val (resp_first, resp_last, resp_beat) = ReRoCCMsgFirstLast(rerocc.resp, false)
     val nCfgs = params.nCfgs
 
-    val cmd_q = Module(new Queue(new RoCCCommand, 2))
-    cmd_q.io.enq <> io.cmd
     val inst_sender = Module(new InstructionSender(edge.bundle))
 
     val csr_opc_io = io.csrs.take(4)
@@ -187,15 +185,15 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_updateptbr(cfg_acq_id) := false.B
     }
 
-    val cmd_opc = cmd_q.io.deq.bits.inst.opcode(6,5)
+    val cmd_opc = io.cmd.bits.inst.opcode(6,5)
     val cmd_cfg_id = csr_opc(cmd_opc)
     val cmd_cfg = csr_cfg(cmd_cfg_id)
     val credit_available = cfg_credits(cmd_cfg_id) =/= 0.U && cmd_cfg.acq
     val status_ready = !cfg_updatestatus(cmd_cfg_id)
     val ptbr_ready = !cfg_updateptbr(cmd_cfg_id)
-    inst_sender.io.cmd.valid := cmd_q.io.deq.valid && credit_available && status_ready && ptbr_ready && cfg_acq_state === s_idle
-    inst_sender.io.cmd.bits.cmd := cmd_q.io.deq.bits
-    cmd_q.io.deq.ready := inst_sender.io.cmd.ready && credit_available && status_ready && ptbr_ready && cfg_acq_state === s_idle
+    inst_sender.io.cmd.valid := io.cmd.valid && credit_available && status_ready && ptbr_ready && cfg_acq_state === s_idle
+    inst_sender.io.cmd.bits.cmd := io.cmd.bits
+    io.cmd.ready := inst_sender.io.cmd.ready && credit_available && status_ready && ptbr_ready && cfg_acq_state === s_idle
     inst_sender.io.cmd.bits.client_id := cmd_cfg_id
     inst_sender.io.cmd.bits.manager_id := cmd_cfg.mgr
     req_arb.io.in(1) <> inst_sender.io.rr
@@ -204,7 +202,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
 
     val f_req_val = cfg_fence_state.map(_ === f_req)
     val f_req_oh = PriorityEncoderOH(f_req_val)
-    req_arb.io.in(2).valid := f_req_val.orR && !inst_sender.io.busy && !cmd_q.io.deq.valid
+    req_arb.io.in(2).valid := f_req_val.orR && !inst_sender.io.busy && !io.cmd.valid
     req_arb.io.in(2).bits.opcode := ReRoCCProtocol.mUnbusy
     req_arb.io.in(2).bits.client_id := OHToUInt(f_req_oh)
     req_arb.io.in(2).bits.manager_id := Mux1H(f_req_val, csr_cfg.map(_.mgr))
@@ -265,7 +263,6 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     }
 
     io.busy := (cfg_acq_state =/= s_idle ||
-      cmd_q.io.deq.valid ||
       cfg_credits.map(_ =/= p(ReRoCCIBufEntriesKey).U).orR ||
       cfg_fence_state.map(_ =/= f_idle).orR
     )
