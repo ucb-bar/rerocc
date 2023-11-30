@@ -76,7 +76,8 @@ class EmptyCoreParams(val nL2TLBEntries: Int, val nL2TLBWays: Int) extends CoreP
   lazy val useBitManipCrypto: Boolean       = false
   lazy val useCryptoNIST: Boolean           = false
   lazy val useCryptoSM: Boolean             = false
-
+  lazy val useVector: Boolean               = false
+  
   lazy val decodeWidth: Int                 = 0
   lazy val fetchWidth: Int                  = 0
   lazy val haveFSDirty: Boolean             = ???
