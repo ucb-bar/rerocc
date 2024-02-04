@@ -15,10 +15,9 @@ import boom.common.{BoomTile}
 
 case object ReRoCCNoCKey extends Field[Option[ReRoCCNoCParams]](None)
 
-trait CanHaveReRoCCTiles { this: HasTiles with constellation.soc.CanHaveGlobalNoC =>
-
+trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElements with constellation.soc.CanHaveGlobalNoC =>
   // WARNING: Not multi-clock safe
-  val reRoCCClients = tiles.map { t => t match {
+  val reRoCCClients = totalTiles.values.map { t => t match {
     case r: RocketTile => r.roccs collect { case r: ReRoCCClient => (t, r) }
     case b: BoomTile => b.roccs collect { case r: ReRoCCClient => (t, r) }
     case _ => Nil

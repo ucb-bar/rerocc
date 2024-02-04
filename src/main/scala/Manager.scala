@@ -30,6 +30,9 @@ case class ReRoCCTileParams(
   val name = None
   val clockSinkParams = ClockSinkParameters()
 
+  val tileId = -1
+  val baseName = s"rerocc_tile"
+  val uniqueName = s"rerocc_tile_$reroccId"
 }
 
 case object ReRoCCTileKey extends Field[Seq[ReRoCCTileParams]](Nil)
@@ -76,8 +79,7 @@ class EmptyCoreParams(val nL2TLBEntries: Int, val nL2TLBWays: Int) extends CoreP
   lazy val useBitManipCrypto: Boolean       = false
   lazy val useCryptoNIST: Boolean           = false
   lazy val useCryptoSM: Boolean             = false
-  lazy val useVector: Boolean               = false
-  
+
   lazy val decodeWidth: Int                 = 0
   lazy val fetchWidth: Int                  = 0
   lazy val haveFSDirty: Boolean             = ???

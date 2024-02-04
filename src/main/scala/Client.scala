@@ -56,7 +56,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
 
 class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit p: Parameters) extends
     LazyRoCC(OpcodeSet.all, 2, roccCSRs = _params.customCSRs) with HasNonDiplomaticTileParameters {
-  val params = _params.copy(tileId = staticIdForMetadataUseOnly)
+  val params = _params.copy(tileId = tileId)
   override def shouldBeInlined = false
 
   val reRoCCNode = ReRoCCClientNode(params)
