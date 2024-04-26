@@ -11,7 +11,7 @@ import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
 
-import boom.common.{BoomTile}
+import boom.v4.common.{BoomTile}
 
 case object ReRoCCNoCKey extends Field[Option[ReRoCCNoCParams]](None)
 
