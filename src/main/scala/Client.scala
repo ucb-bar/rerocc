@@ -104,10 +104,10 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cfg_acq_mgr_id = Reg(UInt())
 
     val cntr = Counter(500000)
-    when(cntr % 100000){  
-      printf(SynthesizePrintf("cfg_acq_state: %d\n", cfg_acq_state)
-      printf(SynthesizePrintf("cfg_acq_id: %d\n", cfg_acq_id)
-      printf(SynthesizePrintf("cfg_acq_mgr_id: %d\n", cfg_acq_mgr_id)
+    when(cntr.asUInt % 100000==0){  
+      printf(SynthesizePrintf("cfg_acq_state: %d\n", cfg_acq_state))
+      printf(SynthesizePrintf("cfg_acq_id: %d\n", cfg_acq_id))
+      printf(SynthesizePrintf("cfg_acq_mgr_id: %d\n", cfg_acq_mgr_id))
     }
 
     for (i <- 0 until nCfgs) { csr_cfg_io(i).stall := cfg_acq_state =/= s_idle }
@@ -159,8 +159,8 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
 
-    when(cntr % 100000){  
-      printf(SynthesizePrintf("cfg_fence_state: %d\n", cfg_fence_state)
+    when(cntr.asUInt % 100000==0){  
+      printf(SynthesizePrintf("cfg_fence_state: %d\n", cfg_fence_state))
     }
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
     val req_arb = Module(new ReRoCCMsgArbiter(edge.bundle, 3, true))
@@ -214,9 +214,9 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     cfg_credit_deq.valid := inst_sender.io.cmd.fire()
     cfg_credit_deq.bits := cmd_cfg_id
 
-    when(cntr % 100000){  
-      printf(SynthesizePrintf("cmd_cfg: %d\n", cmd_cfg)
-      printf(SynthesizePrintf("cmd_cfg_id: %d\n", cmd_cfg_id)
+    when(cntr.asUInt % 100000==0){  
+      printf(SynthesizePrintf("cmd_cfg: %d\n", cmd_cfg))
+      printf(SynthesizePrintf("cmd_cfg_id: %d\n", cmd_cfg_id))
     }
     val f_req_val = cfg_fence_state.map(_ === f_req)
     val f_req_oh = PriorityEncoderOH(f_req_val)
