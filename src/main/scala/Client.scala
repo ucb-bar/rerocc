@@ -8,6 +8,8 @@ import freechips.rocketchip.tile._
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.util._
 
+import midas.targetutils.SynthesizePrintf
+
 class ReRoCCInstBundle(b: ReRoCCBundleParams)(implicit p: Parameters) extends Bundle {
   val cmd = new RoCCCommand
   val client_id = UInt(b.clientIdBits.W)
@@ -94,10 +96,19 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     }
     csr_cfg := csr_cfg_next
 
+    val core_id = p(freechips.rocketchip.tile.TileKey).hartId.asUInt()
+
     val s_idle :: s_acq :: s_acq_ack :: s_rel :: s_rel_ack :: s_status0 :: s_status1 :: s_ptbr :: Nil = Enum(8)
     val cfg_acq_state = RegInit(s_idle)
     val cfg_acq_id = Reg(UInt())
     val cfg_acq_mgr_id = Reg(UInt())
+
+    val cntr = Counter(500000)
+    when(cntr % 100000 && core_id === 0.U){  
+      printf(SynthesizePrintf("cfg_acq_state: %d\n", cfg_acq_state)
+      printf(SynthesizePrintf("cfg_acq_id: %d\n", cfg_acq_id)
+      printf(SynthesizePrintf("cfg_acq_mgr_id: %d\n", cfg_acq_mgr_id)
+    }
 
     for (i <- 0 until nCfgs) { csr_cfg_io(i).stall := cfg_acq_state =/= s_idle }
 
@@ -148,6 +159,9 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
 
+    when(cntr % 100000 && core_id === 0.U){  
+      printf(SynthesizePrintf("cfg_fence_state: %d\n", cfg_fence_state)
+    }
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
     val req_arb = Module(new ReRoCCMsgArbiter(edge.bundle, 3, true))
     rerocc.req <> req_arb.io.out
@@ -200,6 +214,10 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     cfg_credit_deq.valid := inst_sender.io.cmd.fire()
     cfg_credit_deq.bits := cmd_cfg_id
 
+    when(cntr % 100000 && core_id === 0.U){  
+      printf(SynthesizePrintf("cmd_cfg: %d\n", cmd_cfg)
+      printf(SynthesizePrintf("cmd_cfg_id: %d\n", cmd_cfg_id)
+    }
     val f_req_val = cfg_fence_state.map(_ === f_req)
     val f_req_oh = PriorityEncoderOH(f_req_val)
     req_arb.io.in(2).valid := f_req_val.orR && !inst_sender.io.busy && !io.cmd.valid
