@@ -96,7 +96,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     }
     csr_cfg := csr_cfg_next
 
-    val core_id = p(freechips.rocketchip.tile.TileKey).hartId.asUInt()
+    //val core_id = p(freechips.rocketchip.tile.TileKey).hartId.asUInt()
 
     val s_idle :: s_acq :: s_acq_ack :: s_rel :: s_rel_ack :: s_status0 :: s_status1 :: s_ptbr :: Nil = Enum(8)
     val cfg_acq_state = RegInit(s_idle)
@@ -104,7 +104,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cfg_acq_mgr_id = Reg(UInt())
 
     val cntr = Counter(500000)
-    when(cntr % 100000 && core_id === 0.U){  
+    when(cntr % 100000){  
       printf(SynthesizePrintf("cfg_acq_state: %d\n", cfg_acq_state)
       printf(SynthesizePrintf("cfg_acq_id: %d\n", cfg_acq_id)
       printf(SynthesizePrintf("cfg_acq_mgr_id: %d\n", cfg_acq_mgr_id)
@@ -159,7 +159,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
 
-    when(cntr % 100000 && core_id === 0.U){  
+    when(cntr % 100000){  
       printf(SynthesizePrintf("cfg_fence_state: %d\n", cfg_fence_state)
     }
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
@@ -214,7 +214,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     cfg_credit_deq.valid := inst_sender.io.cmd.fire()
     cfg_credit_deq.bits := cmd_cfg_id
 
-    when(cntr % 100000 && core_id === 0.U){  
+    when(cntr % 100000){  
       printf(SynthesizePrintf("cmd_cfg: %d\n", cmd_cfg)
       printf(SynthesizePrintf("cmd_cfg_id: %d\n", cmd_cfg_id)
     }
