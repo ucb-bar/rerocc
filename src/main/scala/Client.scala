@@ -103,8 +103,13 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cfg_acq_id = Reg(UInt())
     val cfg_acq_mgr_id = Reg(UInt())
 
-    val cntr = Counter(500000)
-    when(cntr.asUInt % 100000==0){  
+    val cntr = RegInit(0.U(20.W))
+    when(cntr < 100000.U){
+      cntr := cntr + 1.U
+    }.otherwise{
+      cntr := 0.U
+    }
+    when(cntr === 0.U){  
       printf(SynthesizePrintf("cfg_acq_state: %d\n", cfg_acq_state))
       printf(SynthesizePrintf("cfg_acq_id: %d\n", cfg_acq_id))
       printf(SynthesizePrintf("cfg_acq_mgr_id: %d\n", cfg_acq_mgr_id))
@@ -159,8 +164,15 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
 
-    when(cntr.asUInt % 100000==0){  
-      printf(SynthesizePrintf("cfg_fence_state: %d\n", cfg_fence_state))
+    when(cntr === 0.U){  
+      printf(SynthesizePrintf("cfg_fence_state0: %d\n", cfg_fence_state(0)))
+      printf(SynthesizePrintf("cfg_fence_state1: %d\n", cfg_fence_state(1)))
+      printf(SynthesizePrintf("cfg_fence_state2: %d\n", cfg_fence_state(2)))
+      printf(SynthesizePrintf("cfg_fence_state3: %d\n", cfg_fence_state(3)))
+      printf(SynthesizePrintf("cfg_fence_state4: %d\n", cfg_fence_state(4)))
+      printf(SynthesizePrintf("cfg_fence_state5: %d\n", cfg_fence_state(5)))
+      printf(SynthesizePrintf("cfg_fence_state6: %d\n", cfg_fence_state(6)))
+      printf(SynthesizePrintf("cfg_fence_state7: %d\n", cfg_fence_state(7)))
     }
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
     val req_arb = Module(new ReRoCCMsgArbiter(edge.bundle, 3, true))
@@ -214,10 +226,10 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     cfg_credit_deq.valid := inst_sender.io.cmd.fire()
     cfg_credit_deq.bits := cmd_cfg_id
 
-    when(cntr.asUInt % 100000==0){  
-      printf(SynthesizePrintf("cmd_cfg: %d\n", cmd_cfg))
-      printf(SynthesizePrintf("cmd_cfg_id: %d\n", cmd_cfg_id))
-    }
+    //when(cntr === 0.U){    
+    //  printf(SynthesizePrintf("cmd_cfg: %d\n", cmd_cfg))
+    //  printf(SynthesizePrintf("cmd_cfg_id: %d\n", cmd_cfg_id))
+    //}
     val f_req_val = cfg_fence_state.map(_ === f_req)
     val f_req_oh = PriorityEncoderOH(f_req_val)
     req_arb.io.in(2).valid := f_req_val.orR && !inst_sender.io.busy && !io.cmd.valid
