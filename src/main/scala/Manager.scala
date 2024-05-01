@@ -153,6 +153,16 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     inst_q.io.enq.bits := next_enq_inst
     inst_q.io.enq.bits.inst.opcode := roccOpcode
 
+    val cntr = RegInit(0.U(20.W))
+    when(cntr < 100000.U){
+      cntr := cntr + 1.U
+    }.otherwise{
+      cntr := 0.U
+    }
+    when(cntr === 0.U){  
+      printf(SynthesizePrintf("manager %d inst count: %d\n", io.manager_id, inst_q.io.count))
+      printf(SynthesizePrintf("manager %d state: %d\n", io.manager_id, state))
+    }
     // 0 -> acquire ack
     // 1 -> inst ack
     // 2 -> writeback

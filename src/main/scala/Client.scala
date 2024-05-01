@@ -184,9 +184,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       printf(SynthesizePrintf("cfg_fence_state7: %d\n", cfg_fence_state(7)))
 
       for(i <- 0 until 8){
-        printf(SynthesizePrintf("cfg_credits%d: %d\n", i, cfg_credits(i)))
-        printf(SynthesizePrintf("cfg_updatestatus%d: %d\n", i, cfg_updatestatus(i)))
-        printf(SynthesizePrintf("cfg_updateptbr%d: %d\n", i, cfg_updateptbr(i)))
+        printf(SynthesizePrintf("cfg_credits%d: %d\n", i.asUInt, cfg_credits(i)))
       }
     }
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
