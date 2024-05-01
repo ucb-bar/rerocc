@@ -27,6 +27,15 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
   val s_inst :: s_rs1 :: s_rs2 :: Nil = Enum(3)
   val state = RegInit(s_inst)
 
+  val cntr = RegInit(0.U(20.W))
+  when(cntr < 100000.U){
+    cntr := cntr + 1.U
+  }.otherwise{
+    cntr := 0.U
+  }
+  when(cntr === 0.U){  
+    printf(SynthesizePrintf("instruction sender state: %d\n", state))
+  }
   io.rr.valid := cmd.valid
   io.rr.bits.opcode := ReRoCCProtocol.mInst
   io.rr.bits.client_id := cmd.bits.client_id
@@ -173,6 +182,12 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       printf(SynthesizePrintf("cfg_fence_state5: %d\n", cfg_fence_state(5)))
       printf(SynthesizePrintf("cfg_fence_state6: %d\n", cfg_fence_state(6)))
       printf(SynthesizePrintf("cfg_fence_state7: %d\n", cfg_fence_state(7)))
+
+      for(i <- 0 until 8){
+        printf(SynthesizePrintf("cfg_credits%d: %d\n", i, cfg_credits(i)))
+        printf(SynthesizePrintf("cfg_updatestatus%d: %d\n", i, cfg_updatestatus(i)))
+        printf(SynthesizePrintf("cfg_updateptbr%d: %d\n", i, cfg_updateptbr(i)))
+      }
     }
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
     val req_arb = Module(new ReRoCCMsgArbiter(edge.bundle, 3, true))
