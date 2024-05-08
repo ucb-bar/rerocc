@@ -173,8 +173,9 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
 
-    assert (cfg_credits <= p(ReRoCCIBufEntriesKey).U)
-
+    for (i <- 0 until 8){
+      assert(cfg_credits(i) <= p(ReRoCCIBufEntriesKey).U)
+    }
     when(cntr === 0.U){  
       printf(SynthesizePrintf("cfg_fence_state0: %d\n", cfg_fence_state(0)))
       printf(SynthesizePrintf("cfg_fence_state1: %d\n", cfg_fence_state(1)))
