@@ -11,6 +11,8 @@ import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
 
+import midas.targetutils.SynthesizePrintf
+
 case class ReRoCCTileParams(
   genRoCC: Option[Parameters => LazyRoCC] = None,
   reroccId: Int = 0,
@@ -162,6 +164,14 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     when(cntr === 0.U){  
       printf(SynthesizePrintf("manager %d inst count: %d\n", io.manager_id, inst_q.io.count))
       printf(SynthesizePrintf("manager %d state: %d\n", io.manager_id, state))
+    }
+    when(io.manager_id === 1.U){
+      when (inst_q.io.enq.fire) {
+        SynthesizePrintf("mgr1 inst_q enq %d + 1\n", inst_q.io.count)
+      }
+      when (inst_q.io.deq.fire) {
+        SynthesizePrintf("mgr1 inst_q deq %d - 1\n", inst_q.io.count)
+      }
     }
     // 0 -> acquire ack
     // 1 -> inst ack

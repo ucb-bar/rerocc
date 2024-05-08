@@ -173,6 +173,8 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_fence_state(csr_bar_io.wdata) := f_req
     }
 
+    assert (cfg_credits <= p(ReRoCCIBufEntriesKey).U)
+
     when(cntr === 0.U){  
       printf(SynthesizePrintf("cfg_fence_state0: %d\n", cfg_fence_state(0)))
       printf(SynthesizePrintf("cfg_fence_state1: %d\n", cfg_fence_state(1)))
@@ -293,7 +295,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
         cfg_fence_state(rerocc.resp.bits.client_id) := f_idle
       }
     }
-
+/*
     when (cfg_credit_enq.valid) {
       assert(cfg_credits(cfg_credit_enq.bits) =/= p(ReRoCCIBufEntriesKey).U)
       cfg_credits(cfg_credit_enq.bits) := cfg_credits(cfg_credit_enq.bits) + 1.U
@@ -303,6 +305,23 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       cfg_credits(cfg_credit_deq.bits) := (cfg_credits(cfg_credit_deq.bits) -
         Mux(cfg_credit_deq.bits === cfg_credit_enq.bits && cfg_credit_enq.valid, 0.U, 1.U)
       )
+    }
+*/
+    when (cfg_credit_enq.valid) {
+      assert(cfg_credits(cfg_credit_enq.bits) < p(ReRoCCIBufEntriesKey).U)
+      cfg_credits(cfg_credit_enq.bits) := cfg_credits(cfg_credit_enq.bits) + 1.U
+      when (cfg_credit_enq.bits === 1.U) {
+        SynthesizePrintf("credit1 enq %d + 1\n", cfg_credits(1))
+      }
+    }
+    when (cfg_credit_deq.valid) {
+      assert(cfg_credits(cfg_credit_deq.bits) =/= 0.U)
+      cfg_credits(cfg_credit_deq.bits) := (cfg_credits(cfg_credit_deq.bits) -
+        Mux(cfg_credit_deq.bits === cfg_credit_enq.bits && cfg_credit_enq.valid, 0.U, 1.U)
+      )
+      when (cfg_credit_deq.bits === 1.U) {
+        SynthesizePrintf("credit1 deq %d - 1\n", cfg_credits(1))
+      }
     }
 
     io.busy := (cfg_acq_state =/= s_idle ||
