@@ -204,7 +204,9 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
       } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mInst) {
         assert(state === s_active && inst_q.io.enq.ready)
         rr_req.ready := true.B
-        if (mgrId == 1) SynthesizePrintf("mgr1 recv %x %x %x\n", req_first, req_last, req_beat)
+        when(io.manager_id === 1.U) {
+          SynthesizePrintf("mgr1 recv %x %x %x\n", req_first, req_last, req_beat)
+        }
         when (req_beat === 0.U) {
           val inst = rr_req.bits.data.asTypeOf(new RoCCInstruction)
           enq_inst.inst := inst
