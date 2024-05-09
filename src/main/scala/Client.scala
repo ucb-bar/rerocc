@@ -146,7 +146,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       } .elsewhen (!wdata.acq && !old.acq) {
         csr_cfg_next(cfg_id).mgr := wdata.mgr
       }
-    } .otherwise {
+    } .elsewhen(cfg_acq_state === s_idle) {
       for (i <- 0 until nCfgs) {
         when (cfg_updatestatus(i) && csr_cfg(i).acq) {
           cfg_acq_state := s_status0
@@ -284,6 +284,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
 
     when (rerocc.resp.bits.opcode === ReRoCCProtocol.sRelResp) {
       rerocc.resp.ready := true.B
+      assert(cfg_acq_state === s_rel_ack)
       when (rerocc.resp.valid) {
         cfg_acq_state := s_idle
       }
