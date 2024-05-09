@@ -146,6 +146,12 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     val (req_first, req_last, req_beat) = ReRoCCMsgFirstLast(rr_req, true)
     val rr_resp = rerocc.resp
 
+    when (io.manager_id === 1.U) {
+      when (rr_req.fire) { 
+        SynthesizePrintf("mgr1 rr_req fire %x %x %x %x\n", req_first, req_last, req_beat, rr_req.bits.opcode) 
+      }
+    }
+
     rr_req.ready := false.B
 
     val inst_q = Module(new Queue(new RoCCCommand, ibufEntries))
@@ -204,9 +210,9 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
       } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mInst) {
         assert(state === s_active && inst_q.io.enq.ready)
         rr_req.ready := true.B
-        when(io.manager_id === 1.U) {
-          SynthesizePrintf("mgr1 recv %x %x %x\n", req_first, req_last, req_beat)
-        }
+        //when(io.manager_id === 1.U) {
+        //  SynthesizePrintf("mgr1 recv %x %x %x\n", req_first, req_last, req_beat)
+        //}
         when (req_beat === 0.U) {
           val inst = rr_req.bits.data.asTypeOf(new RoCCInstruction)
           enq_inst.inst := inst
