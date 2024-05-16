@@ -114,7 +114,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
 
     //when(rerocc.resp.bits.client_id === 1.U){
       when (cfg_acq_state =/= RegNext(cfg_acq_state)) {
-        SynthesizePrintf("client1 state change %d -> %d\n", RegNext(cfg_acq_state), cfg_acq_state)
+        SynthesizePrintf("client cfgid %d state change %d -> %d\n", cfg_acq_id, RegNext(cfg_acq_state), cfg_acq_state)
       }
     //}
     val cntr = RegInit(0.U(20.W))
