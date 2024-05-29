@@ -29,7 +29,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
   io.rr.bits.opcode := ReRoCCProtocol.mInst
   io.rr.bits.client_id := cmd.bits.client_id
   io.rr.bits.manager_id := cmd.bits.manager_id
-  io.rr.bits.data := MuxLookup(state, 0.U, Seq(
+  io.rr.bits.data := MuxLookup(state, 0.U)(Seq(
     (s_inst     -> cmd.bits.cmd.inst.asUInt(31,0)),
     (s_rs1      -> cmd.bits.cmd.rs1),
     (s_rs2      -> cmd.bits.cmd.rs2)))
