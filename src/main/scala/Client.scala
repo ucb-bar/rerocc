@@ -46,7 +46,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
     next_state := s_inst
   }
 
-  when (io.rr.fire()) {
+  when (io.rr.fire) {
     state := next_state
   }
 
@@ -197,7 +197,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     inst_sender.io.cmd.bits.client_id := cmd_cfg_id
     inst_sender.io.cmd.bits.manager_id := cmd_cfg.mgr
     req_arb.io.in(1) <> inst_sender.io.rr
-    cfg_credit_deq.valid := inst_sender.io.cmd.fire()
+    cfg_credit_deq.valid := inst_sender.io.cmd.fire
     cfg_credit_deq.bits := cmd_cfg_id
 
     val f_req_val = cfg_fence_state.map(_ === f_req)

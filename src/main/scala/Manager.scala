@@ -168,7 +168,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
       when (rr_req.bits.opcode === ReRoCCProtocol.mAcquire) {
         rr_req.ready := resp_arb.io.in(0).ready
         resp_arb.io.in(0).valid := true.B
-        when (state === s_idle && rr_req.fire()) {
+        when (state === s_idle && rr_req.fire) {
           state := s_active
           client := rr_req.bits.client_id
         }
@@ -237,7 +237,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     resp_arb.io.in(2).bits.client_id  := client
     resp_arb.io.in(2).bits.manager_id := io.manager_id
     resp_arb.io.in(2).bits.data       := Mux(resp_rd, resp.bits.rd, resp.bits.data)
-    when (resp_arb.io.in(2).fire()) { resp_rd := !resp_rd }
+    when (resp_arb.io.in(2).fire) { resp_rd := !resp_rd }
     resp.ready := resp_arb.io.in(2).ready && resp_rd
 
     // release
@@ -247,7 +247,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     resp_arb.io.in(3).bits.manager_id := io.manager_id
     resp_arb.io.in(3).bits.data       := 0.U
 
-    when (resp_arb.io.in(3).fire()) {
+    when (resp_arb.io.in(3).fire) {
       state := s_sfence
     }
     when (state === s_sfence) { state := s_idle }
@@ -259,7 +259,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     resp_arb.io.in(4).bits.manager_id := io.manager_id
     resp_arb.io.in(4).bits.data       := 0.U
 
-    when (resp_arb.io.in(4).fire()) { state := s_active }
+    when (resp_arb.io.in(4).fire) { state := s_active }
   }
 }
 

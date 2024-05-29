@@ -33,7 +33,7 @@ class HellaMMIO(name: String)(implicit p: Parameters) extends LazyModule()(p) {
     io.req.ready := iomshr.io.req.ready
     when (io.req.valid) { assert(io.req.bits.phys) }
 
-    val s1_valid = RegNext(io.req.fire(), false.B)
+    val s1_valid = RegNext(io.req.fire, false.B)
     val s1_req = RegEnable(io.req.bits, io.req.valid)
 
     io.s2_nack := false.B
