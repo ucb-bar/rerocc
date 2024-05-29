@@ -11,6 +11,8 @@ import freechips.rocketchip.util._
 import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
 
+import midas.targetutils.SynthesizePrintf
+
 case class ReRoCCTileParams(
   genRoCC: Option[Parameters => LazyRoCC] = None,
   reroccId: Int = 0,
@@ -140,6 +142,9 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     val rr_req = Queue(rerocc.req)
     val (req_first, req_last, req_beat) = ReRoCCMsgFirstLast(rr_req, true)
     val rr_resp = rerocc.resp
+    when (rr_req.fire) { 
+      SynthesizePrintf("mgr%d rr_req fire %x %x %x %x\n", io.manager_id, req_first, req_last, req_beat, rr_req.bits.opcode) 
+    }
 
     rr_req.ready := false.B
 
@@ -150,6 +155,24 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
     inst_q.io.enq.bits := next_enq_inst
     inst_q.io.enq.bits.inst.opcode := roccOpcode
 
+    val cntr = RegInit(0.U(20.W))
+    when(cntr < 100000.U){
+      cntr := cntr + 1.U
+    }.otherwise{
+      cntr := 0.U
+    }
+    when(cntr === 0.U){  
+      printf(SynthesizePrintf("manager %d inst count: %d\n", io.manager_id, inst_q.io.count))
+      printf(SynthesizePrintf("manager %d state: %d\n", io.manager_id, state))
+    }
+    //when(io.manager_id === 1.U){
+      when (inst_q.io.enq.fire) {
+        SynthesizePrintf("mgr%d inst_q enq %d + 1\n", io.manager_id, inst_q.io.count)
+      }
+      when (inst_q.io.deq.fire) {
+        SynthesizePrintf("mgr%d inst_q deq %d - 1\n", io.manager_id, inst_q.io.count)
+      }
+    //}
     // 0 -> acquire ack
     // 1 -> inst ack
     // 2 -> writeback

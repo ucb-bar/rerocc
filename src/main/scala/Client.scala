@@ -8,6 +8,9 @@ import freechips.rocketchip.tile._
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.util._
 
+import midas.targetutils.SynthesizePrintf
+
+
 class ReRoCCInstBundle(b: ReRoCCBundleParams)(implicit p: Parameters) extends Bundle {
   val cmd = new RoCCCommand
   val client_id = UInt(b.clientIdBits.W)
@@ -24,6 +27,16 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
 
   val s_inst :: s_rs1 :: s_rs2 :: Nil = Enum(3)
   val state = RegInit(s_inst)
+
+  val cntr = RegInit(0.U(20.W))
+  when(cntr < 100000.U){
+    cntr := cntr + 1.U
+  }.otherwise{
+    cntr := 0.U
+  }
+  when(cntr === 0.U){  
+    printf(SynthesizePrintf("instruction sender state: %d\n", state))
+  }
 
   io.rr.valid := cmd.valid
   io.rr.bits.opcode := ReRoCCProtocol.mInst
@@ -99,6 +112,24 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cfg_acq_id = Reg(UInt())
     val cfg_acq_mgr_id = Reg(UInt())
 
+
+    //when(rerocc.resp.bits.client_id === 1.U){
+      when (cfg_acq_state =/= RegNext(cfg_acq_state)) {
+        SynthesizePrintf("client cfgid %d state change %d -> %d\n", cfg_acq_id, RegNext(cfg_acq_state), cfg_acq_state)
+      }
+    //}
+    val cntr = RegInit(0.U(20.W))
+    when(cntr < 100000.U){
+      cntr := cntr + 1.U
+    }.otherwise{
+      cntr := 0.U
+    }
+    when(cntr === 0.U){  
+      printf(SynthesizePrintf("cfg_acq_state: %d\n", cfg_acq_state))
+      printf(SynthesizePrintf("cfg_acq_id: %d\n", cfg_acq_id))
+      printf(SynthesizePrintf("cfg_acq_mgr_id: %d\n", cfg_acq_mgr_id))
+    }
+
     for (i <- 0 until nCfgs) { csr_cfg_io(i).stall := cfg_acq_state =/= s_idle }
 
     when (csr_cfg_io.map(_.wen).orR && cfg_acq_state === s_idle) {
@@ -121,7 +152,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
       } .elsewhen (!wdata.acq && !old.acq) {
         csr_cfg_next(cfg_id).mgr := wdata.mgr
       }
-    } .otherwise {
+    } .elsewhen(cfg_acq_state === s_idle) {
       for (i <- 0 until nCfgs) {
         when (cfg_updatestatus(i) && csr_cfg(i).acq) {
           cfg_acq_state := s_status0
@@ -146,6 +177,16 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     val cfg_fence_state = RegInit(VecInit.fill(nCfgs) { f_idle })
     when (csr_bar_io.wen && cfg_fence_state(csr_bar_io.wdata) === f_idle && csr_cfg(csr_bar_io.wdata).acq) {
       cfg_fence_state(csr_bar_io.wdata) := f_req
+    }
+
+    for (i <- 0 until nCfgs){
+      assert(cfg_credits(i) <= p(ReRoCCIBufEntriesKey).U)
+    }
+    when(cntr === 0.U){  
+      for(i <- 0 until nCfgs){
+        printf(SynthesizePrintf("cfg_fence_state%d: %d\n", i.asUInt, cfg_fence_state(i)))
+        printf(SynthesizePrintf("cfg_credits%d: %d\n", i.asUInt, cfg_credits(i)))
+      }
     }
 
     // 0 -> cfg, 1 -> inst, 2 -> unbusy
@@ -239,6 +280,7 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     when (rerocc.resp.bits.opcode === ReRoCCProtocol.sRelResp) {
       rerocc.resp.ready := true.B
       when (rerocc.resp.valid) {
+        assert(cfg_acq_state === s_rel_ack)
         cfg_acq_state := s_idle
       }
     }
@@ -254,12 +296,18 @@ class ReRoCCClient(_params: ReRoCCClientParams = ReRoCCClientParams())(implicit 
     when (cfg_credit_enq.valid) {
       assert(cfg_credits(cfg_credit_enq.bits) =/= p(ReRoCCIBufEntriesKey).U)
       cfg_credits(cfg_credit_enq.bits) := cfg_credits(cfg_credit_enq.bits) + 1.U
+      for(i <- 0 until nCfgs) {
+        SynthesizePrintf("credit%d enq %d + 1\n", i.asUInt, cfg_credits(i))
+      }
     }
     when (cfg_credit_deq.valid) {
       assert(cfg_credits(cfg_credit_deq.bits) =/= 0.U)
       cfg_credits(cfg_credit_deq.bits) := (cfg_credits(cfg_credit_deq.bits) -
         Mux(cfg_credit_deq.bits === cfg_credit_enq.bits && cfg_credit_enq.valid, 0.U, 1.U)
       )
+      for(i <- 0 until nCfgs) {
+        SynthesizePrintf("credit%d deq %d + 1\n", i.asUInt, cfg_credits(i))
+      }
     }
 
     io.busy := (cfg_acq_state =/= s_idle ||
