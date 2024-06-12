@@ -173,14 +173,14 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
           client := rr_req.bits.client_id
         }
       } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mUStatus) {
-        rr_req.ready := !inst_q.io.deq.valid
-        when (!inst_q.io.deq.valid) {
+        rr_req.ready := !inst_q.io.deq.valid && !io.busy
+        when (!inst_q.io.deq.valid && !io.busy) {
           when (req_first) { status_lower := rr_req.bits.data }
           when (req_last) { status := Cat(rr_req.bits.data, status_lower).asTypeOf(new MStatus) }
         }
       } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mUPtbr) {
-        rr_req.ready := !inst_q.io.deq.valid
-        when (!inst_q.io.deq.valid) { ptbr := rr_req.bits.data.asTypeOf(new PTBR) }
+        rr_req.ready := !inst_q.io.deq.valid && !io.busy
+        when (!inst_q.io.deq.valid && !io.busy) { ptbr := rr_req.bits.data.asTypeOf(new PTBR) }
       } .elsewhen (rr_req.bits.opcode === ReRoCCProtocol.mInst) {
         assert(state === s_active && inst_q.io.enq.ready)
         rr_req.ready := true.B
