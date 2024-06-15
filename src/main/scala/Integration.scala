@@ -21,7 +21,7 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
   val reRoCCClients = totalTiles.values.map { t => t match {
     case r: RocketTile => r.roccs collect { case r: ReRoCCClient => (t, r) }
     case b: BoomTile => b.roccs collect { case r: ReRoCCClient => (t, r) }
-    case s: ShuttleTile => s.roccs collect { case r: ReRoCCClient => (t, r) }
+    case s: ShuttleTile => s.roccs collect { case r: ReRoCCClient => (t, r) } // Added for shuttle
     case _ => Nil
   }}.flatten
 
