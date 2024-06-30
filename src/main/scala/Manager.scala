@@ -18,9 +18,10 @@ case class ReRoCCTileParams(
   dcacheParams: Option[DCacheParams] = Some(DCacheParams(nSets = 4, nWays = 4)),
   mergeTLNodes: Boolean = true,
   l2TLBEntries: Int = 0,
-  l2TLBWays: Int = 4
+  l2TLBWays: Int = 4,
+  pgLevels: Int = 3
 ) extends TileParams {
-  val core = new EmptyCoreParams(l2TLBEntries, l2TLBWays)
+  val core = new EmptyCoreParams(l2TLBEntries, l2TLBWays, pgLevels)
   val icache = None
   val dcache = Some(dcacheParams.getOrElse(DCacheParams()).copy(rowBits=rowBits))
   val btb = None
@@ -38,8 +39,9 @@ case class ReRoCCTileParams(
 case object ReRoCCTileKey extends Field[Seq[ReRoCCTileParams]](Nil)
 case object ReRoCCIBufEntriesKey extends Field[Int](4)
 
-class EmptyCoreParams(val nL2TLBEntries: Int, val nL2TLBWays: Int) extends CoreParams {
+class EmptyCoreParams(val nL2TLBEntries: Int, val nL2TLBWays: Int, val pgLevels: Int) extends CoreParams {
   // Most fields are unused, or make no sense in the context of a ReRoCC tile
+  lazy val xLen: Int                        = 64
   lazy val bootFreqHz: BigInt               = ???
   lazy val useVM: Boolean                   = true
   lazy val useUser: Boolean                 = ???

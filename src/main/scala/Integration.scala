@@ -35,7 +35,8 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
   )).node
   val reRoCCManagers = p(ReRoCCTileKey).zipWithIndex.map { case (g,i) =>
     val rerocc_prci_domain = locateTLBusWrapper(SBUS).generateSynchronousDomain.suggestName(s"rerocc_prci_domain_$i")
-    val rerocc_tile = rerocc_prci_domain { LazyModule(new ReRoCCManagerTile(g.copy(reroccId = i), p)) }
+    val rerocc_tile = rerocc_prci_domain { LazyModule(new ReRoCCManagerTile(
+      g.copy(reroccId = i, pgLevels = reRoCCClients.head._2.pgLevels), p)) }
     println(s"ReRoCC Manager id $i is a ${rerocc_tile.rocc}")
     locateTLBusWrapper(SBUS).coupleFrom(s"port_named_rerocc_$i") {
       (_ :=* TLBuffer() :=* rerocc_tile.tlNode)
@@ -46,6 +47,8 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
   require(!(reRoCCManagers.isEmpty ^ reRoCCClients.isEmpty))
 
   if (!reRoCCClients.isEmpty) {
+    require(reRoCCClients.map(_._2).forall(_.pgLevels == reRoCCClients.head._2.pgLevels))
+    require(reRoCCClients.map(_._2).forall(_.xLen == 64))
     val rerocc_bus_domain = locateTLBusWrapper(SBUS).generateSynchronousDomain
     rerocc_bus_domain {
       val rerocc_bus = p(ReRoCCNoCKey).map { k =>
