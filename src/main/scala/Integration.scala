@@ -42,7 +42,7 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
     locateTLBusWrapper(SBUS).coupleFrom(s"port_named_rerocc_$i") {
       (_ :=* TLBuffer() :=* rerocc_tile.tlNode)
     }
-    locateTLBusWrapper(SBUS).coupleTo(s"port_named_rerocc_$i") {
+    locateTLBusWrapper(SBUS).coupleTo(s"sport_named_rerocc_$i") {
       (rerocc_tile.stlNode :*= TLBuffer() :*= _)
     }
     rerocc_tile.reroccManagerIdSinkNode := reRoCCManagerIdNexusNode
