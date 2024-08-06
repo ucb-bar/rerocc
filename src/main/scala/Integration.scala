@@ -12,6 +12,7 @@ import freechips.rocketchip.prci._
 import freechips.rocketchip.subsystem._
 
 import boom.v4.common.{BoomTile}
+import shuttle.common.{ShuttleTile}
 
 case object ReRoCCNoCKey extends Field[Option[ReRoCCNoCParams]](None)
 
@@ -20,6 +21,7 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
   val reRoCCClients = totalTiles.values.map { t => t match {
     case r: RocketTile => r.roccs collect { case r: ReRoCCClient => (t, r) }
     case b: BoomTile => b.roccs collect { case r: ReRoCCClient => (t, r) }
+    case s: ShuttleTile => s.roccs collect { case r: ReRoCCClient => (t, r) } // Added for shuttle
     case _ => Nil
   }}.flatten
 
@@ -41,6 +43,9 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
     locateTLBusWrapper(SBUS).coupleFrom(s"port_named_rerocc_$i") {
       (_ :=* TLBuffer() :=* rerocc_tile.tlNode)
     }
+    locateTLBusWrapper(SBUS).coupleTo(s"sport_named_rerocc_$i") {
+      (rerocc_tile.stlNode :*= TLBuffer() :*= TLWidthWidget(locateTLBusWrapper(SBUS).beatBytes) :*= TLBuffer() :*= _)
+    }
     rerocc_tile.reroccManagerIdSinkNode := reRoCCManagerIdNexusNode
     rerocc_tile
   }
@@ -58,7 +63,7 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
           LazyModule(new ReRoCCNoC(k))
         }
       }.getOrElse(LazyModule(new ReRoCCXbar()))
-      reRoCCClients.foreach { case (t, c) => rerocc_bus.node := t { ReRoCCBuffer() := c.reRoCCNode } }
+      reRoCCClients.foreach { case (t, c) => rerocc_bus.node := ReRoCCBuffer() := t { ReRoCCBuffer() := c.reRoCCNode } }
       reRoCCManagers.foreach { m => m.reRoCCNode := rerocc_bus.node }
     }
   }
