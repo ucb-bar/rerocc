@@ -60,7 +60,7 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
           LazyModule(new ReRoCCNoC(k))
         }
       }.getOrElse(LazyModule(new ReRoCCXbar()))
-      reRoCCClients.foreach { case (t, c) => rerocc_bus.node := t { ReRoCCBuffer() := c.reRoCCNode } }
+      reRoCCClients.foreach { case (t, c) => rerocc_bus.node := ReRoCCBuffer() := t { ReRoCCBuffer() := c.reRoCCNode } }
       reRoCCManagers.foreach { m => m.reRoCCNode := rerocc_bus.node }
     }
   }
