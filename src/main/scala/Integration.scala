@@ -14,6 +14,11 @@ import freechips.rocketchip.subsystem._
 import boom.v4.common.{BoomTile}
 import shuttle.common.{ShuttleTile}
 
+import rerocc.client._
+import rerocc.manager._
+import rerocc.bus._
+
+
 case object ReRoCCNoCKey extends Field[Option[ReRoCCNoCParams]](None)
 
 trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElements with constellation.soc.CanHaveGlobalNoC =>

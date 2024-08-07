@@ -1,4 +1,4 @@
-package rerocc
+package rerocc.client
 
 import chisel3._
 import chisel3.util._
@@ -7,6 +7,17 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tile._
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.util._
+
+import rerocc.bus._
+import rerocc.manager.{ReRoCCIBufEntriesKey}
+
+case class ReRoCCClientParams(
+  nCfgs: Int = 16,
+  tileId: Int = 0
+) {
+  require(nCfgs <= 16)
+  def customCSRs = ReRoCCCSRs.customCSRs(nCfgs)
+}
 
 class ReRoCCInstBundle(b: ReRoCCBundleParams)(implicit p: Parameters) extends Bundle {
   val cmd = new RoCCCommand

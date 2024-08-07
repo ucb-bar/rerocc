@@ -1,4 +1,4 @@
-package rerocc
+package rerocc.client
 
 import chisel3._
 import chisel3.util._

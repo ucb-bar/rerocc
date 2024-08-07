@@ -1,21 +1,13 @@
-package rerocc
+package rerocc.bus
 
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import freechips.rocketchip.tile.{CustomCSR}
 
-case class ReRoCCClientParams(
-  nCfgs: Int = 16,
-  tileId: Int = 0
-) {
-  require(nCfgs <= 16)
-  def customCSRs = ReRoCCCSRs.customCSRs(nCfgs)
-}
-
-case class ReRoCCManagerParams(
-  managerId: Int,
-)
+import rerocc.client._
+import rerocc.manager._
+import rerocc.bus._
 
 case class ReRoCCClientPortParams(
   clients: Seq[ReRoCCClientParams]
