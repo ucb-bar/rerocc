@@ -18,7 +18,7 @@ import rerocc.client._
 import rerocc.manager._
 import rerocc.bus._
 
-
+case object ReRoCCControlBus extends Field[TLBusWrapperLocation](CBUS)
 case object ReRoCCNoCKey extends Field[Option[ReRoCCNoCParams]](None)
 
 trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElements with constellation.soc.CanHaveGlobalNoC =>
@@ -50,6 +50,11 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
     }
     locateTLBusWrapper(SBUS).coupleTo(s"sport_named_rerocc_$i") {
       (rerocc_tile.stlNode :*= TLBuffer() :*= TLWidthWidget(locateTLBusWrapper(SBUS).beatBytes) :*= TLBuffer() :*= _)
+    }
+    val ctrlBus = locateTLBusWrapper(p(ReRoCCControlBus))
+    ctrlBus.coupleTo(s"port_named_rerocc_ctrl_$i") {
+      val remapper = ctrlBus { LazyModule(new ReRoCCManagerControlRemapper(i)) }
+      (rerocc_tile.ctrl.ctrlNode := remapper.node := _)
     }
     rerocc_tile.reroccManagerIdSinkNode := reRoCCManagerIdNexusNode
     rerocc_tile

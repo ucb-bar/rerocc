@@ -17,6 +17,8 @@ case class ReRoCCManagerParams(
   managerId: Int,
 )
 
+case object ReRoCCManagerControlAddress extends Field[BigInt](0x20000)
+
 // For local PTW
 class MiniDCache(reRoCCId: Int, crossing: ClockCrossingType)(implicit p: Parameters) extends DCache(0, crossing)(p) {
   override def cacheClientParameters = Seq(TLMasterParameters.v1(
@@ -202,7 +204,7 @@ class ReRoCCManagerTile()(implicit p: Parameters) extends LazyModule {
   }
   val reroccManagerIdSinkNode = BundleBridgeSink[UInt]()
 
-    val rocc = reRoCCParams.genRoCC.get(p)
+  val rocc = reRoCCParams.genRoCC.get(p)
   require(rocc.opcodes.opcodes.size == 1)
   val rerocc_manager = LazyModule(new ReRoCCManager(reRoCCParams, rocc.opcodes.opcodes.head))
   val reRoCCNode = ReRoCCIdentityNode()
@@ -230,6 +232,7 @@ class ReRoCCManagerTile()(implicit p: Parameters) extends LazyModule {
     Some(h)
   } else { None }
 
+  val ctrl = LazyModule(new ReRoCCManagerControl(reRoCCId, 8))
 
   override lazy val module = new LazyModuleImp(this) {
     val dcacheArb = Module(new HellaCacheArbiter(2)(p))
@@ -269,5 +272,8 @@ class ReRoCCManagerTile()(implicit p: Parameters) extends LazyModule {
     rocc.module.io.fpu_resp.bits := DontCare
 
     rocc.module.io.exception := false.B
+
+    ctrl.module.io.mgr_busy := rerocc_manager.module.io.busy
+    ctrl.module.io.rocc_busy := rocc.module.io.busy
   }
 }
