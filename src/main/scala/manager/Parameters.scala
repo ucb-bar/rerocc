@@ -77,10 +77,9 @@ class EmptyCoreParams(val nL2TLBEntries: Int, val nL2TLBWays: Int, val pgLevels:
   lazy val mulDiv: Option[MulDivParams]     = None
   lazy val fpu: Option[FPUParams]           = Some(FPUParams())
   lazy val traceHasWdata: Boolean           = false
-  lazy val useBitManip: Boolean             = false
-  lazy val useBitManipCrypto: Boolean       = false
-  lazy val useCryptoNIST: Boolean           = false
-  lazy val useCryptoSM: Boolean             = false
+  lazy val useZba: Boolean                  = false
+  lazy val useZbb: Boolean                  = false
+  lazy val useZbs: Boolean                  = false
 
   lazy val decodeWidth: Int                 = 0
   lazy val fetchWidth: Int                  = 0
