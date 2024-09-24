@@ -54,7 +54,7 @@ trait CanHaveReRoCCTiles { this: BaseSubsystem with InstantiatesHierarchicalElem
     val ctrlBus = locateTLBusWrapper(p(ReRoCCControlBus))
     ctrlBus.coupleTo(s"port_named_rerocc_ctrl_$i") {
       val remapper = ctrlBus { LazyModule(new ReRoCCManagerControlRemapper(i)) }
-      (rerocc_tile.ctrl.ctrlNode := remapper.node := _)
+      (rerocc_tile.ctrl.ctrlNode := remapper.node := TLFragmenter(ctrlBus.beatBytes, ctrlBus.blockBytes) := _)
     }
     rerocc_tile.reroccManagerIdSinkNode := reRoCCManagerIdNexusNode
     rerocc_tile
