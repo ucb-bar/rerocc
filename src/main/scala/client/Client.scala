@@ -35,6 +35,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
 
   val s_inst :: s_rs1 :: s_rs2 :: Nil = Enum(3)
   val state = RegInit(s_inst)
+  val next_state = WireInit(state)
 
   io.rr.valid := cmd.valid
   io.rr.bits.opcode := ReRoCCProtocol.mInst
@@ -44,9 +45,7 @@ class InstructionSender(b: ReRoCCBundleParams)(implicit p: Parameters) extends M
     (s_inst     -> cmd.bits.cmd.inst.asUInt(31,0)),
     (s_rs1      -> cmd.bits.cmd.rs1),
     (s_rs2      -> cmd.bits.cmd.rs2)))
-  cmd.ready := io.rr.ready && state === s_rs2
-
-  val next_state = WireInit(state)
+  cmd.ready := io.rr.ready && next_state === s_inst
 
   when (state === s_inst) {
     next_state := Mux(cmd.bits.cmd.inst.xs1, s_rs1,
