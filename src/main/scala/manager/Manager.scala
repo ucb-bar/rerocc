@@ -120,7 +120,7 @@ class ReRoCCManager(reRoCCTileParams: ReRoCCTileParams, roccOpcode: UInt)(implic
           enq_inst.inst := inst
           when (!inst.xs1        ) { enq_inst.rs1 := 0.U }
           when (!inst.xs2        ) { enq_inst.rs2 := 0.U }
-          next_enq_inst := inst
+          next_enq_inst.inst := inst
         } .otherwise {
           val enq_inst_rs1      = enq_inst.inst.xs1 && req_beat === 1.U
           val enq_inst_rs2      = enq_inst.inst.xs2 && req_beat === Mux(enq_inst.inst.xs1, 2.U, 1.U)
