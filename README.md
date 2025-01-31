@@ -96,6 +96,11 @@ The protocol implements a 64-bit data channel with multi-beat message types.
 | mRelease        | mRelResp         | Relinquishes an attached accelerator                                                             |
 | mUnbusy         | mUnbusyAck       | Wait for accelerator to unbusy (TODO: Remove)                                                    |
 
+### Tests
+
+A simple smoke test is found in ``software``.
+It requires the ``ReRoCCTestConfig`` in Chipyard to run.
+
 ## Status
 
 ReRoCC is currently under development. A brief list of TODOs:
