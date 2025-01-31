@@ -27,7 +27,7 @@ LDFLAGS = -static
 
 include libgloss.mk
 
-PROGRAMS = rerocc
+PROGRAMS = test
 
 
 .DEFAULT_GOAL := default
